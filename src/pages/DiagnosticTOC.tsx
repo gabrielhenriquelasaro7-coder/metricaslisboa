@@ -280,7 +280,7 @@ export default function DiagnosticTOC() {
                               <p className="text-[9px] text-muted-foreground font-bold">{(sp as any).segment || 'Serviços'}</p>
                             </div>
                           </div>
-                          <ArrowRight className="w-4 h-4 text-zinc-800 group-hover:text-red-600 group-hover:translate-x-1 transition-all" />
+                          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-red-600 group-hover:translate-x-1 transition-all" />
                         </button>
                       ))}
                   </div>
