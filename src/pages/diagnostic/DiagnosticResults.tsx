@@ -187,19 +187,278 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
     try {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const w = doc.internal.pageSize.getWidth();
-      let y = 20;
-      doc.setFontSize(18); doc.setFont('helvetica', 'bold');
-      doc.text('Relatório de Diagnóstico — TOC', w / 2, y, { align: 'center' });
-      y += 10; doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-      doc.text(`Empresa: ${project.name} · Segmento: ${project.segment}`, w / 2, y, { align: 'center' });
-      y += 12; doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(220, 38, 38);
-      doc.text(`TRAVA IDENTIFICADA: ${(TRAVA_NAMES[activeTrava] || ai.trava_nome).toUpperCase()}`, 20, y);
-      doc.setTextColor(0, 0, 0); y += 8; doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-      const synLines = doc.splitTextToSize(ai.sintese, w - 40);
-      doc.text(synLines, 20, y); y += synLines.length * 5 + 8;
+      const h = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      const contentW = w - margin * 2;
+      let y = 0;
+
+      // ── COVER PAGE ──
+      // Dark header band
+      doc.setFillColor(17, 17, 17);
+      doc.rect(0, 0, w, 90, 'F');
+      // Red accent line
+      doc.setFillColor(220, 38, 38);
+      doc.rect(margin, 70, 40, 3, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+      doc.text('RELATÓRIO DE DIAGNÓSTICO', margin, 30);
+      doc.setFontSize(28); doc.setFont('helvetica', 'bold');
+      doc.text('Teoria das Restrições', margin, 50);
+      doc.setFontSize(12); doc.setFont('helvetica', 'normal');
+      doc.text(`${project.name} · ${project.segment}`, margin, 63);
+
+      // Info below header
+      doc.setTextColor(100, 100, 100);
+      y = 105;
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('EMPRESA', margin, y);
+      doc.text('SEGMENTO', margin + 60, y);
+      doc.text('MODELO', margin + 120, y);
+      doc.setTextColor(30, 30, 30);
+      doc.setFontSize(11); doc.setFont('helvetica', 'normal');
+      y += 6;
+      doc.text(project.name || '—', margin, y);
+      doc.text(project.segment || '—', margin + 60, y);
+      doc.text(project.identification?.businessModel || '—', margin + 120, y);
+
+      // ── RESTRIÇÃO IDENTIFICADA ──
+      y += 20;
+      doc.setFillColor(220, 38, 38);
+      doc.roundedRect(margin, y, contentW, 35, 3, 3, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('RESTRIÇÃO ATIVA IDENTIFICADA', margin + 8, y + 10);
+      doc.setFontSize(22); doc.setFont('helvetica', 'bold');
+      doc.text((TRAVA_NAMES[activeTrava] || ai.trava_nome).toUpperCase(), margin + 8, y + 25);
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      doc.text(`Trava ${activeTrava} · Confiança: ${ai.confianca?.toUpperCase() || 'N/A'}`, margin + 8, y + 32);
+
+      // ── CORE PROBLEM ──
+      y += 45;
+      doc.setTextColor(220, 38, 38);
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('CORE PROBLEM', margin, y);
+      doc.setTextColor(30, 30, 30);
+      doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+      y += 6;
+      const cpLines = doc.splitTextToSize(ai.razao_core_problem, contentW);
+      doc.text(cpLines, margin, y);
+      y += cpLines.length * 5 + 6;
+
+      // ── INJEÇÃO RECOMENDADA ──
+      doc.setTextColor(16, 185, 129);
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('INJEÇÃO RECOMENDADA', margin, y);
+      doc.setTextColor(30, 30, 30);
+      doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+      y += 6;
+      const injLines = doc.splitTextToSize(ai.injecao_recomendada, contentW);
+      doc.text(injLines, margin, y);
+      y += injLines.length * 5 + 10;
+
+      // ── SÍNTESE EXECUTIVA ──
+      doc.setDrawColor(220, 220, 220);
+      doc.line(margin, y, w - margin, y);
+      y += 8;
+      doc.setTextColor(220, 38, 38);
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('SÍNTESE EXECUTIVA', margin, y);
+      doc.setTextColor(60, 60, 60);
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      y += 6;
+      const synLines = doc.splitTextToSize(ai.sintese, contentW);
+      for (const line of synLines) {
+        if (y > h - 25) { doc.addPage(); y = margin; }
+        doc.text(line, margin, y);
+        y += 4.5;
+      }
+
+      // ── PAGE 2: BENCHMARKS TABLE ──
+      doc.addPage();
+      y = margin;
+      doc.setFillColor(17, 17, 17);
+      doc.rect(0, 0, w, 15, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('BENCHMARKS VS REAL', margin, 10);
+      doc.setTextColor(30, 30, 30);
+      y = 25;
+
+      // Table header
+      doc.setFillColor(245, 245, 245);
+      doc.rect(margin, y, contentW, 8, 'F');
+      doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(100, 100, 100);
+      doc.text('TRAVA', margin + 3, y + 5.5);
+      doc.text('STATUS', margin + 55, y + 5.5);
+      doc.text('BENCHMARK', w - margin - 3, y + 5.5, { align: 'right' });
+      y += 8;
+
+      // Table rows
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      ai.stage_scores.forEach((score, idx) => {
+        const nId = normalizeTravaId(score.trava);
+        const isGargalo = nId === activeTrava;
+        if (isGargalo) {
+          doc.setFillColor(254, 242, 242);
+          doc.rect(margin, y, contentW, 9, 'F');
+        } else if (idx % 2 === 0) {
+          doc.setFillColor(250, 250, 250);
+          doc.rect(margin, y, contentW, 9, 'F');
+        }
+        doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'bold');
+        doc.text(`${nId} ${TRAVA_NAMES[nId] || score.nome}`, margin + 3, y + 6);
+        const statusLabel = isGargalo ? 'GARGALO' : (STATUS_LABELS[score.status] || 'SEM DADOS');
+        if (isGargalo) doc.setTextColor(220, 38, 38);
+        else if (score.status === 'bom') doc.setTextColor(16, 185, 129);
+        else if (score.status === 'na_media') doc.setTextColor(245, 158, 11);
+        else doc.setTextColor(150, 150, 150);
+        doc.setFont('helvetica', 'bold');
+        doc.text(statusLabel, margin + 55, y + 6);
+        doc.setTextColor(120, 120, 120); doc.setFont('helvetica', 'normal');
+        doc.text(BENCHMARK_DEFAULTS[nId] || '—', w - margin - 3, y + 6, { align: 'right' });
+        y += 9;
+      });
+
+      // ── UDEs ──
+      y += 10;
+      doc.setTextColor(220, 38, 38);
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('UDEs — EFEITOS INDESEJÁVEIS', margin, y);
+      doc.setTextColor(60, 60, 60);
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      y += 6;
+      ai.udes.forEach(ude => {
+        if (y > h - 20) { doc.addPage(); y = margin; }
+        const udeLines = doc.splitTextToSize(`• ${ude}`, contentW - 5);
+        doc.text(udeLines, margin + 3, y);
+        y += udeLines.length * 4.5 + 2;
+      });
+
+      // ── PAGE 3: LTP ANALYSIS ──
+      doc.addPage();
+      y = margin;
+      doc.setFillColor(17, 17, 17);
+      doc.rect(0, 0, w, 15, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('LTP — LOGICAL THINKING PROCESS', margin, 10);
+      y = 25;
+
+      // CRT
+      doc.setTextColor(220, 38, 38);
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('CADEIA DE REALIDADE ATUAL (CRT)', margin, y);
+      y += 6; doc.setTextColor(60, 60, 60); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      ai.ltp_analysis.crt_nodes.forEach((node, idx) => {
+        if (y > h - 20) { doc.addPage(); y = margin; }
+        const prefix = idx === ai.ltp_analysis.crt_nodes.length - 1 ? '◉ ' : `${idx + 1}. `;
+        const nLines = doc.splitTextToSize(`${prefix}${node}`, contentW - 5);
+        doc.text(nLines, margin + 3, y);
+        y += nLines.length * 4.5 + 2;
+      });
+
+      // Evaporating Cloud
+      y += 6;
+      if (y > h - 60) { doc.addPage(); y = margin; }
+      doc.setTextColor(220, 38, 38);
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('EVAPORATING CLOUD', margin, y);
+      y += 8;
+
+      const ecFields = [
+        { label: 'OBJETIVO', value: ai.ltp_analysis.evaporating_cloud.objetivo },
+        { label: 'NECESSIDADE A', value: ai.ltp_analysis.evaporating_cloud.necessidade_a },
+        { label: 'AÇÃO A', value: ai.ltp_analysis.evaporating_cloud.acao_a },
+        { label: 'NECESSIDADE B', value: ai.ltp_analysis.evaporating_cloud.necessidade_b },
+        { label: 'AÇÃO B', value: ai.ltp_analysis.evaporating_cloud.acao_b },
+        { label: 'PRESSUPOSTO INVÁLIDO', value: ai.ltp_analysis.evaporating_cloud.pressuposto_invalido },
+        { label: 'INJEÇÃO', value: ai.ltp_analysis.evaporating_cloud.injecao },
+      ];
+      ecFields.forEach(field => {
+        if (y > h - 20) { doc.addPage(); y = margin; }
+        doc.setTextColor(100, 100, 100); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+        doc.text(field.label, margin + 3, y);
+        y += 4;
+        doc.setTextColor(30, 30, 30); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+        const fLines = doc.splitTextToSize(field.value, contentW - 8);
+        doc.text(fLines, margin + 3, y);
+        y += fLines.length * 4.5 + 4;
+      });
+
+      // FRT
+      y += 4;
+      if (y > h - 30) { doc.addPage(); y = margin; }
+      doc.setTextColor(16, 185, 129);
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('EFEITOS DESEJÁVEIS (FRT)', margin, y);
+      y += 6; doc.setTextColor(60, 60, 60); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      ai.ltp_analysis.frt_effects.forEach(e => {
+        if (y > h - 15) { doc.addPage(); y = margin; }
+        const eLines = doc.splitTextToSize(`✓ ${e}`, contentW - 5);
+        doc.text(eLines, margin + 3, y);
+        y += eLines.length * 4.5 + 2;
+      });
+
+      // Negative Branches
+      y += 4;
+      if (y > h - 30) { doc.addPage(); y = margin; }
+      doc.setTextColor(245, 158, 11);
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('RISCOS — NEGATIVE BRANCHES', margin, y);
+      y += 6; doc.setTextColor(60, 60, 60); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      ai.ltp_analysis.negative_branches.forEach(nb => {
+        if (y > h - 15) { doc.addPage(); y = margin; }
+        const nbLines = doc.splitTextToSize(`⚠ ${nb}`, contentW - 5);
+        doc.text(nbLines, margin + 3, y);
+        y += nbLines.length * 4.5 + 2;
+      });
+
+      // ── PAGE 4: PLANO 90 DIAS ──
+      doc.addPage();
+      y = margin;
+      doc.setFillColor(17, 17, 17);
+      doc.rect(0, 0, w, 15, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('PLANO ESTRATÉGICO DE 90 DIAS', margin, 10);
+      y = 25;
+
+      [
+        { phase: 'MÊS 01', data: ai.plano_90_dias.mes_1 },
+        { phase: 'MÊS 02', data: ai.plano_90_dias.mes_2 },
+        { phase: 'MÊS 03', data: ai.plano_90_dias.mes_3 },
+      ].forEach(p => {
+        if (y > h - 40) { doc.addPage(); y = margin; }
+        doc.setFillColor(245, 245, 245);
+        doc.roundedRect(margin, y, contentW, 8, 2, 2, 'F');
+        doc.setTextColor(220, 38, 38); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+        doc.text(`${p.phase} — ${p.data.titulo}`, margin + 4, y + 5.5);
+        y += 12;
+        doc.setTextColor(60, 60, 60); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+        p.data.acoes.forEach(a => {
+          if (y > h - 15) { doc.addPage(); y = margin; }
+          const aLines = doc.splitTextToSize(`• ${a}`, contentW - 10);
+          doc.text(aLines, margin + 6, y);
+          y += aLines.length * 4.5 + 2;
+        });
+        y += 6;
+      });
+
+      // Footer on all pages
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7); doc.setTextColor(180, 180, 180); doc.setFont('helvetica', 'normal');
+        doc.text(`Diagnóstico TOC · ${project.name} · Página ${i}/${totalPages}`, w / 2, h - 8, { align: 'center' });
+      }
+
       doc.save(`diagnostico-${project.name.replace(/\s+/g, '-').toLowerCase()}.pdf`);
-      toast.success('PDF exportado!');
-    } catch { toast.error('Erro ao gerar PDF'); }
+      toast.success('PDF exportado com sucesso!');
+    } catch (e) {
+      console.error('PDF export error:', e);
+      toast.error('Erro ao gerar PDF');
+    }
   };
 
   const getTravaName = (trava: string): string => TRAVA_NAMES[normalizeTravaId(trava)] || trava;
