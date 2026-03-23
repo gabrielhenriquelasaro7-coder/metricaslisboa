@@ -256,7 +256,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 Restrição Ativa Identificada
               </Badge>
               <h3 className="text-5xl md:text-6xl font-black text-foreground uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                {getTravaName(ai.trava_identificada)} <span className="text-muted-foreground/30 text-2xl">({ai.trava_identificada})</span>
+                {getTravaName(activeTrava)} <span className="text-muted-foreground/30 text-2xl">({activeTrava})</span>
               </h3>
               <p className="text-red-500/80 font-black uppercase tracking-[0.3em] flex items-center gap-2 text-xs">
                 <AlertTriangle className="w-4 h-4" /> Confiança: {ai.confianca?.toUpperCase()}
@@ -275,10 +275,10 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Benchmark de Mercado</p>
               </div>
               <p className="text-sm text-foreground font-bold">
-                {getTravaName(ai.trava_identificada)}
+                {getTravaName(activeTrava)}
               </p>
               <p className="text-[10px] text-muted-foreground">
-                Segmento <span className="text-foreground font-bold">{project.segment}</span> · {MARKET_BENCHMARKS[ai.trava_identificada]?.value || 'N/A'}
+                Segmento <span className="text-foreground font-bold">{project.segment}</span> · {MARKET_BENCHMARKS[activeTrava]?.value || 'N/A'}
               </p>
             </div>
 
