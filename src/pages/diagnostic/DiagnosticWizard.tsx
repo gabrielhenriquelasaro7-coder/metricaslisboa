@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   DiagnosticProject,
   BusinessModel,
@@ -32,6 +32,8 @@ import {
   ShoppingCart,
   Store,
   Headphones,
+  Database,
+  RefreshCw,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -178,6 +180,8 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
   const [project, setProject] = useState<DiagnosticProject>(initialProject);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentTravaIdx, setCurrentTravaIdx] = useState(0);
+  const [autoFilledFields, setAutoFilledFields] = useState<Record<string, Set<string>>>({});
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState(false);
 
   // New data structures
   const [identification, setIdentification] = useState<DiagnosticIdentification>(
@@ -214,9 +218,120 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
     }
   );
 
+  // Auto-fetch project metrics from ads_daily_metrics
+  const fetchProjectMetrics = useCallback(async () => {
+    const systemProjectId = (initialProject as any).systemProjectId || (initialProject as any).projectId;
+    if (!systemProjectId) return;
+
+    setIsLoadingMetrics(true);
+    try {
+      // Fetch Meta Ads daily metrics
+      const { data: metaMetrics, error: metaError } = await supabase
+        .from('ads_daily_metrics')
+        .select('spend, impressions, clicks, leads_count, reach, cpm, cpc, ctr, cpa')
+        .eq('project_id', systemProjectId);
+
+      // Fetch Google Ads daily metrics
+      const { data: googleMetrics, error: googleError } = await supabase
+        .from('google_ads_daily_metrics')
+        .select('spend, impressions, clicks, conversions, cpm, cpc, ctr')
+        .eq('project_id', systemProjectId);
+
+      let totalImpressions = 0, totalClicks = 0, totalSpend = 0, totalLeads = 0;
+
+      if (metaMetrics && metaMetrics.length > 0) {
+        for (const m of metaMetrics) {
+          totalImpressions += m.impressions || 0;
+          totalClicks += m.clicks || 0;
+          totalSpend += m.spend || 0;
+          totalLeads += m.leads_count || 0;
+        }
+      }
+
+      if (googleMetrics && googleMetrics.length > 0) {
+        for (const m of googleMetrics) {
+          totalImpressions += m.impressions || 0;
+          totalClicks += m.clicks || 0;
+          totalSpend += m.spend || 0;
+          totalLeads += (m.conversions || 0);
+        }
+      }
+
+      if (totalImpressions === 0 && totalClicks === 0) {
+        toast.info('Nenhum dado de mídia encontrado para este projeto.');
+        setIsLoadingMetrics(false);
+        return;
+      }
+
+      const cpm = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
+      const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+      const cpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
+      const cpl = totalLeads > 0 ? totalSpend / totalLeads : 0;
+
+      const newAutoFields: Record<string, Set<string>> = {};
+
+      setFunnelData(prev => {
+        const updated = { ...prev };
+
+        // Trava 07 - Exposição
+        if (totalImpressions > 0) {
+          updated.trava07 = {
+            ...updated.trava07,
+            impressions: Math.round(totalImpressions),
+            cpm: parseFloat(cpm.toFixed(2)),
+          };
+          newAutoFields['trava07'] = new Set(['impressions', 'cpm']);
+        }
+
+        // Trava 06 - Atenção
+        if (totalClicks > 0) {
+          updated.trava06 = {
+            ...updated.trava06,
+            ctr: parseFloat(ctr.toFixed(2)),
+            clicks: Math.round(totalClicks),
+            cpc: parseFloat(cpc.toFixed(2)),
+          };
+          newAutoFields['trava06'] = new Set(['ctr', 'clicks', 'cpc']);
+        }
+
+        // Trava 05 - Interesse (leads + CPL)
+        if (totalLeads > 0) {
+          updated.trava05 = {
+            ...updated.trava05,
+            leads: Math.round(totalLeads),
+            cpl: parseFloat(cpl.toFixed(2)),
+          };
+          newAutoFields['trava05'] = new Set(['leads', 'cpl']);
+        }
+
+        return updated;
+      });
+
+      setAutoFilledFields(newAutoFields);
+      toast.success(`Dados importados: ${totalImpressions.toLocaleString()} impressões, ${totalClicks.toLocaleString()} cliques, ${totalLeads.toLocaleString()} leads`);
+    } catch (err) {
+      console.error('Error fetching project metrics:', err);
+      toast.error('Erro ao buscar métricas do projeto');
+    } finally {
+      setIsLoadingMetrics(false);
+    }
+  }, [initialProject]);
+
+  // Auto-fetch on mount if project has systemProjectId
+  useEffect(() => {
+    const systemProjectId = (initialProject as any).systemProjectId || (initialProject as any).projectId;
+    if (systemProjectId && !initialProject.funnelData?.trava07?.impressions) {
+      fetchProjectMetrics();
+    }
+  }, []);
+
   const travaConfigs = getTravaConfigs(identification.businessModel);
   const currentStep = STEPS[currentStepIdx];
   const progress = ((currentStepIdx + 1) / STEPS.length) * 100;
+
+  const isFieldAutoFilled = (travaId: string, fieldKey: string) => {
+    return autoFilledFields[travaId]?.has(fieldKey) || false;
+  };
 
   const updateFunnelField = (travaId: string, key: string, value: string) => {
     setFunnelData(prev => ({
@@ -226,6 +341,16 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
         [key]: value === '' ? null : parseFloat(value) || value,
       },
     }));
+    // Remove auto-filled flag if user manually edits
+    setAutoFilledFields(prev => {
+      const updated = { ...prev };
+      if (updated[travaId]) {
+        const newSet = new Set(updated[travaId]);
+        newSet.delete(key);
+        updated[travaId] = newSet;
+      }
+      return updated;
+    });
   };
 
   const handleBack = () => {
@@ -612,33 +737,62 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                 const trava = travaConfigs[currentTravaIdx];
                 if (!trava) return <p className="text-zinc-500">Sem configuração de trava disponível.</p>;
 
+                const hasAutoData = Object.keys(autoFilledFields).length > 0;
+
                 return (
                   <>
-                    <div>
-                      <h3 className="text-lg font-black text-white">{trava.label}</h3>
-                      <p className="text-[11px] text-red-600 font-bold mt-0.5">{trava.description}</p>
-                      <p className="text-[10px] text-zinc-600 mt-1">
-                        Passo {currentTravaIdx + 1} de {travaConfigs.length} · Preencha apenas o que souber. Campos vazios = sem dados.
-                      </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-black text-white">{trava.label}</h3>
+                        <p className="text-[11px] text-red-600 font-bold mt-0.5">{trava.description}</p>
+                        <p className="text-[10px] text-zinc-600 mt-1">
+                          Passo {currentTravaIdx + 1} de {travaConfigs.length} · Preencha apenas o que souber. Campos vazios = sem dados.
+                        </p>
+                      </div>
+                      {(trava.id === 'trava07' || trava.id === 'trava06' || trava.id === 'trava05') && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={fetchProjectMetrics}
+                          disabled={isLoadingMetrics}
+                          className="gap-2 text-[9px] font-black uppercase tracking-widest rounded-xl border-white/10 text-zinc-400 hover:text-white hover:border-emerald-600/30"
+                        >
+                          {isLoadingMetrics ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                          {isLoadingMetrics ? 'Importando...' : 'Importar do Sistema'}
+                        </Button>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      {trava.fields.map(field => (
-                        <div key={field.key} className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-                            {field.label}
-                          </Label>
-                          <Input
-                            type="number"
-                            placeholder={field.placeholder}
-                            step="0.01"
-                            className="h-12 rounded-xl bg-black border-white/10 text-white text-lg font-black text-center"
-                            value={(funnelData[trava.id as keyof DiagnosticFunnelData] as any)?.[field.key] ?? ''}
-                            onChange={e => updateFunnelField(trava.id, field.key, e.target.value)}
-                          />
-                          <p className="text-[10px] text-zinc-600">{field.help}</p>
-                        </div>
-                      ))}
+                      {trava.fields.map(field => {
+                        const isAuto = isFieldAutoFilled(trava.id, field.key);
+                        return (
+                          <div key={field.key} className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                                {field.label}
+                              </Label>
+                              {isAuto && (
+                                <Badge className="bg-emerald-600/10 text-emerald-500 border-emerald-600/20 text-[7px] font-black uppercase px-1.5 py-0">
+                                  <Database className="w-2.5 h-2.5 mr-1" /> Auto
+                                </Badge>
+                              )}
+                            </div>
+                            <Input
+                              type="number"
+                              placeholder={field.placeholder}
+                              step="0.01"
+                              className={cn(
+                                "h-12 rounded-xl bg-black border-white/10 text-white text-lg font-black text-center",
+                                isAuto && "border-emerald-600/20 bg-emerald-950/10"
+                              )}
+                              value={(funnelData[trava.id as keyof DiagnosticFunnelData] as any)?.[field.key] ?? ''}
+                              onChange={e => updateFunnelField(trava.id, field.key, e.target.value)}
+                            />
+                            <p className="text-[10px] text-zinc-600">{field.help}</p>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     {/* Progress dots */}
