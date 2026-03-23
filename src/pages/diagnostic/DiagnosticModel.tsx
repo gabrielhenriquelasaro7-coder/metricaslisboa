@@ -276,9 +276,9 @@ export function DiagnosticModel() {
                 <div className="flex items-start gap-4 border-l-2 border-amber-500/40 pl-5">
                     <Info className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                     <div>
-                        <p className="text-[11px] font-black text-white uppercase tracking-widest mb-1">💡 Recomendação</p>
-                        <p className="text-[11px] text-zinc-400 leading-relaxed">
-                            Sempre <strong className="text-white">"uma trava por vez"</strong> em ciclos de 90 dias. Tentar resolver múltiplas travas simultaneamente é otimização local — aumenta custo sem mover o throughput global.
+                        <p className="text-[11px] font-black text-foreground uppercase tracking-widest mb-1">💡 Recomendação</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            Sempre <strong className="text-foreground">"uma trava por vez"</strong> em ciclos de 90 dias. Tentar resolver múltiplas travas simultaneamente é otimização local — aumenta custo sem mover o throughput global.
                         </p>
                     </div>
                 </div>
