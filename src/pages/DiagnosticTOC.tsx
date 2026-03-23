@@ -311,7 +311,7 @@ export default function DiagnosticTOC() {
                   <AlertTriangle className="w-3 h-3" />
                   <span className="text-[9px] font-black uppercase tracking-widest">Alerta de Throughput</span>
                 </div>
-                <p className="text-[9px] text-zinc-500 font-medium leading-relaxed italic">
+                <p className="text-[9px] text-muted-foreground font-medium leading-relaxed italic">
                   "Aumentar a verba sem resolver a restrição apenas aumenta o custo de aquisição."
                 </p>
               </div>
