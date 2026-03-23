@@ -483,7 +483,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
         <div className="px-8 pt-5 pb-0">
           <button
             onClick={handleBack}
-            className="flex items-center gap-1.5 text-[10px] font-black text-zinc-600 hover:text-white uppercase tracking-widest transition-colors group"
+            className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors group"
           >
             <ChevronLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" /> Voltar
           </button>
