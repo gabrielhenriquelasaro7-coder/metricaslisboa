@@ -327,10 +327,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             <h4 className="text-xl font-black uppercase tracking-tight text-white italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Painel de Travas</h4>
             <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Arraste os sliders para simular cenários · Tudo está linkado</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="rounded-xl border-white/10 bg-black/50 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-white/5">Ajustar Benchmarks</Button>
-            <Badge variant="outline" className="text-[9px] border-white/10 text-zinc-400 font-black px-4 py-1.5 rounded-full uppercase">{`Bench: ${project.segment}`}</Badge>
-          </div>
+          <Badge variant="outline" className="text-[9px] border-white/10 text-zinc-400 font-black px-4 py-1.5 rounded-full uppercase">{`Bench: ${project.segment}`}</Badge>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 flex-1 relative z-10">
