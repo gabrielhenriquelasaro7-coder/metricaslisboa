@@ -36,15 +36,25 @@ const STATUS_LABELS: Record<string, string> = {
   sem_dados: 'SEM DADOS',
 };
 
+// Bowtie stages from Retenção (left) → Exposição (right) with clip-path polygons
 const BOWTIE_STAGES = [
-  { trava: '07', label: 'EXPOSIÇÃO' },
-  { trava: '06', label: 'ATENÇÃO' },
-  { trava: '05', label: 'INTERESSE' },
-  { trava: '04', label: 'QUALIFICAÇÃO' },
-  { trava: '03', label: 'COMPROMISSO' },
-  { trava: '02', label: 'DECISÃO' },
-  { trava: '01', label: 'RETENÇÃO' },
+  { trava: '01', label: 'Retenção',     clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)',           leftBar: '0%',  rightBar: '10%' },
+  { trava: '02', label: 'Decisão',      clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)',             leftBar: '10%', rightBar: '20%' },
+  { trava: '03', label: 'Compromisso',  clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)',             leftBar: '20%', rightBar: '30%' },
+  { trava: '04', label: 'Qualificação', clipPath: 'polygon(100% 30%, 100% 70%, 0% 70%, 0% 30%)',             leftBar: '30%', rightBar: '30%' },
+  { trava: '05', label: 'Interesse',    clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)',             leftBar: '30%', rightBar: '20%' },
+  { trava: '06', label: 'Atenção',      clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)',             leftBar: '20%', rightBar: '10%' },
+  { trava: '07', label: 'Exposição',    clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)',             leftBar: '10%', rightBar: '0%' },
 ];
+
+function getStageColor(status: string, isBottleneck: boolean) {
+  if (isBottleneck) return { text: 'text-red-500', glow: 'rgba(239, 68, 68, 0.4)', bg: 'from-red-600/20', border: 'border-red-500/50', barColor: 'bg-red-600', dotColor: 'bg-red-500' };
+  switch (status) {
+    case 'bom': return { text: 'text-emerald-500', glow: 'rgba(16, 185, 129, 0.2)', bg: 'from-emerald-500/10', border: 'border-emerald-500/20', barColor: 'bg-emerald-500', dotColor: 'bg-emerald-400' };
+    case 'na_media': return { text: 'text-amber-500', glow: 'rgba(245, 158, 11, 0.2)', bg: 'from-amber-500/10', border: 'border-amber-500/20', barColor: 'bg-amber-500', dotColor: 'bg-amber-400' };
+    default: return { text: 'text-yellow-500', glow: 'rgba(234, 179, 8, 0.2)', bg: 'from-yellow-500/10', border: 'border-white/5', barColor: 'bg-yellow-500', dotColor: 'bg-yellow-400' };
+  }
+}
 
 function formatDisplayValue(val: string | null | undefined): string {
   if (!val || val === 'null' || val === 'undefined' || val === '0.00') return 'Sem dados';
@@ -309,81 +319,92 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         </div>
       </Card>
 
-      {/* ═══ SECTION 3: BOWTIE FUNNEL ═══ */}
-      <Card className="p-6 border border-white/5 bg-zinc-950 rounded-[2.5rem] space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="text-lg font-black uppercase tracking-tight text-white italic">Fluxo de Receita</h4>
-            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Modelagem Dinâmica Bowtie</p>
+      {/* ═══ SECTION 3: BOWTIE FUNNEL (clip-path trapezoids) ═══ */}
+      <div className="bg-zinc-950/50 backdrop-blur-sm border border-white/5 rounded-xl p-4 md:p-6 shadow-2xl md:px-8 md:py-8 w-full">
+        <div className="flex items-center justify-between mb-8 px-2">
+          <div className="flex flex-col">
+            <h5 className="text-[12px] font-black text-white uppercase tracking-widest italic">Fluxo de RECEITA</h5>
+            <p className="text-[8px] text-zinc-500 uppercase font-bold tracking-widest">Modelagem Dinâmica Bowtie</p>
           </div>
-          <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-widest">
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Eficiente</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" /> Na Média</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" /> Gargalo</span>
+          <div className="hidden sm:flex gap-4">
+            <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-[8px] font-black text-zinc-400 uppercase">Eficiente</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-amber-500" /><span className="text-[8px] font-black text-zinc-400 uppercase">Na Média</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-red-600" /><span className="text-[8px] font-black text-zinc-400 uppercase">Gargalo</span></div>
           </div>
         </div>
 
-        <div className="flex items-stretch justify-between gap-1.5 overflow-x-auto pb-2">
+        <div className="flex items-center justify-between gap-1 py-4 px-2 overflow-x-auto">
           {BOWTIE_STAGES.map((stage, idx) => {
             const score = scoreMap.get(stage.trava);
             const status = score?.status || 'sem_dados';
             const isBottleneck = stage.trava === ai.trava_identificada;
             const displayVal = formatDisplayValue(score?.valor_informado);
-
-            // Perspective widths — wider at edges, narrower at center
-            const centerIdx = 3;
-            const distFromCenter = Math.abs(idx - centerIdx);
-            const widthPct = 80 + distFromCenter * 8;
+            const colors = getStageColor(status, isBottleneck);
+            const obsText = score?.observacao ? score.observacao.slice(0, 25) : 'Sem dados para análise';
 
             return (
-              <div key={stage.trava} className="flex flex-col items-center gap-2 flex-1 min-w-[90px]">
-                <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">{stage.label}</span>
+              <div key={stage.trava} className="flex items-center">
+                <div className="flex flex-col items-center relative gap-2">
+                  <span className="text-white/70 text-[10px] text-center font-bold uppercase tracking-tighter">{stage.label}</span>
 
-                <div className="relative flex flex-col items-center justify-center flex-1 w-full">
-                  {/* Trapezoid bar */}
-                  <div
-                    className={cn(
-                      "relative w-full rounded-xl border-2 flex flex-col items-center justify-center py-6 px-2 transition-all min-h-[130px]",
-                      isBottleneck
-                        ? "border-red-500 bg-red-500/10 shadow-[0_0_25px_rgba(239,68,68,0.25)]"
-                        : status === 'bom' ? "border-emerald-500/30 bg-emerald-500/5"
-                        : status === 'na_media' ? "border-amber-500/30 bg-amber-500/5"
-                        : status === 'critico' ? "border-red-500/30 bg-red-500/5"
-                        : "border-zinc-700/30 bg-zinc-800/10"
-                    )}
-                    style={{ width: `${widthPct}%`, margin: '0 auto' }}
-                  >
-                    {/* Yellow side bars */}
-                    <div className="absolute left-0 top-3 bottom-3 w-1 bg-amber-500/60 rounded-full" />
-                    <div className="absolute right-0 top-3 bottom-3 w-1 bg-amber-500/60 rounded-full" />
+                  <div className="relative group/stage">
+                    {/* Left yellow/colored bar */}
+                    <div
+                      className={cn("absolute left-0 z-30 w-[4px] transition-all duration-500", colors.barColor, isBottleneck && "shadow-[0_0_12px_#ef4444]")}
+                      style={{ top: stage.leftBar, bottom: stage.leftBar }}
+                    />
+                    {/* Right yellow/colored bar */}
+                    <div
+                      className={cn("absolute right-0 z-30 w-[4px] transition-all duration-500", colors.barColor, isBottleneck && "shadow-[0_0_12px_#ef4444]")}
+                      style={{ top: stage.rightBar, bottom: stage.rightBar }}
+                    />
 
-                    <span className={cn("text-2xl font-black leading-none", getBowtieTextColor(status))}>
-                      {displayVal}
-                    </span>
-                    <span className="text-[8px] text-zinc-600 font-medium mt-1 text-center leading-tight max-w-[80px] line-clamp-2">
-                      {score?.observacao ? score.observacao.slice(0, 30) : 'Aguardando dados'}
-                    </span>
+                    <div
+                      className={cn(
+                        "flex items-center justify-center transition-all h-[120px] w-[100px] relative z-10 border-y",
+                        isBottleneck
+                          ? `bg-gradient-to-br ${colors.bg} to-transparent shadow-[0_0_25px_${colors.glow}] scale-105 z-20 animate-pulse ${colors.border}`
+                          : `border-white/5 bg-gradient-to-br ${colors.bg} to-transparent shadow-[0_0_15px_${colors.glow}]`
+                      )}
+                      style={{ clipPath: stage.clipPath }}
+                    >
+                      <div className="absolute inset-0 z-0" style={{ background: `radial-gradient(circle, ${isBottleneck ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 255, 255, 0.05)'}, transparent)`, transform: 'scale(1.2)' }} />
+                      <div className="flex flex-col items-center z-10 px-2">
+                        <span className={cn(
+                          "text-sm font-black drop-shadow-lg leading-none text-center break-words",
+                          colors.text,
+                          isBottleneck && "scale-110 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]"
+                        )}>
+                          {displayVal}
+                        </span>
+                        <span className="text-white/40 text-[8px] font-bold mt-1 text-center line-clamp-2 max-w-[80px]">{obsText}</span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Arrow to next */}
-                  {idx < BOWTIE_STAGES.length - 1 && (
-                    <div className="absolute -right-2.5 top-1/2 -translate-y-1/2 z-10">
-                      <ArrowRight className="w-4 h-4 text-zinc-700" />
-                    </div>
-                  )}
+                  <div className={cn(
+                    "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest",
+                    isBottleneck ? "bg-red-600 text-white shadow-[0_0_10px_rgba(239,68,68,0.4)]" : colors.text
+                  )}>
+                    {isBottleneck ? 'GARGALO' : STATUS_LABELS[status] || 'SEM DADOS'}
+                  </div>
                 </div>
 
-                <span className={cn(
-                  "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
-                  isBottleneck ? "text-red-500 bg-red-500/10" : getStatusBadgeColor(status)
-                )}>
-                  {isBottleneck ? 'GARGALO' : STATUS_LABELS[status] || 'SEM DADOS'}
-                </span>
+                {/* Arrow connector between stages */}
+                {idx < BOWTIE_STAGES.length - 1 && (
+                  <div className="flex items-center justify-center relative mx-2">
+                    <svg width="24" height="20" viewBox="0 0 24 20" className="relative z-10">
+                      <line x1="4" y1="10" x2="20" y2="10" stroke="#eab308" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+                      <polygon points="20,10 14,7 14,13" fill="#eab308" opacity="0.6" />
+                    </svg>
+                    <div className="absolute right-0 w-1.5 h-1.5 rounded-full animate-pulse z-20 bg-yellow-400" style={{ boxShadow: '0 0 10px rgb(234, 179, 8)' }} />
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
-      </Card>
+      </div>
 
       {/* ═══ SECTION 4: SÍNTESE EXECUTIVA ═══ */}
       <Card className="p-6 border border-white/5 bg-zinc-950 rounded-[2.5rem] space-y-6">
