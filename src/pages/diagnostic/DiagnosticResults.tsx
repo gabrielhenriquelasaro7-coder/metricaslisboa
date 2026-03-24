@@ -110,7 +110,8 @@ function getStageColor(status: string, isBottleneck: boolean) {
   switch (status) {
     case 'bom': return { text: 'text-emerald-500', glow: 'rgba(16, 185, 129, 0.2)', bg: 'from-emerald-500/10', border: 'border-emerald-500/20', barColor: 'bg-emerald-500', dotColor: 'bg-emerald-400' };
     case 'na_media': return { text: 'text-amber-500', glow: 'rgba(245, 158, 11, 0.2)', bg: 'from-amber-500/10', border: 'border-amber-500/20', barColor: 'bg-amber-500', dotColor: 'bg-amber-400' };
-    default: return { text: 'text-yellow-500', glow: 'rgba(234, 179, 8, 0.2)', bg: 'from-yellow-500/10', border: 'border-border', barColor: 'bg-yellow-500', dotColor: 'bg-yellow-400' };
+    case 'sem_dados': return { text: 'text-red-500', glow: 'rgba(239, 68, 68, 0.3)', bg: 'from-red-600/15', border: 'border-red-500/30', barColor: 'bg-red-600', dotColor: 'bg-red-500' };
+    default: return { text: 'text-red-500', glow: 'rgba(239, 68, 68, 0.3)', bg: 'from-red-600/15', border: 'border-red-500/30', barColor: 'bg-red-600', dotColor: 'bg-red-500' };
   }
 }
 
