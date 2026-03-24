@@ -272,11 +272,13 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
     );
   }
 
-  const scoreMap = new Map(ai.stage_scores.map(s => [normalizeTravaId(s.trava, s.nome), s]));
+  const stageScores = ai.stage_scores || [];
+  const scoreMap = new Map(stageScores.map(s => [normalizeTravaId(s.trava, s.nome), s]));
   const activeTrava = normalizeTravaId(ai.trava_identificada, ai.trava_nome);
 
   // Debug: log stage_scores normalization
-  console.log('[DiagnosticResults] stage_scores raw:', ai.stage_scores.map(s => ({ trava: s.trava, nome: s.nome, normalized: normalizeTravaId(s.trava, s.nome), status: s.status })));
+  console.log('[DiagnosticResults] stage_scores raw:', stageScores.map(s => ({ trava: s.trava, nome: s.nome, normalized: normalizeTravaId(s.trava, s.nome), status: s.status })));
+  console.log('[DiagnosticResults] stage_scores count:', stageScores.length);
   console.log('[DiagnosticResults] activeTrava:', activeTrava, 'from:', ai.trava_identificada, ai.trava_nome);
 
   const handleExportPDF = () => {
@@ -793,11 +795,11 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
               <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
               <span className="text-[11px] font-black uppercase tracking-[0.25em]">Vendas / CS</span>
             </div>
-            {ai.stage_scores
+            {stageScores
               .filter(s => ['07', '06', '05'].includes(normalizeTravaId(s.trava, s.nome)))
               .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
               .map(score => renderTravaSlider(score))}
-            {ai.stage_scores.filter(s => ['07', '06', '05'].includes(normalizeTravaId(s.trava, s.nome))).length === 0 && (
+            {stageScores.filter(s => ['07', '06', '05'].includes(normalizeTravaId(s.trava, s.nome))).length === 0 && (
               <p className="text-[11px] text-muted-foreground italic p-4">Nenhuma trava encontrada nesta coluna</p>
             )}
           </div>
@@ -808,11 +810,11 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
               <div className="w-2 h-2 rounded-full bg-amber-500" />
               <span className="text-[11px] font-black uppercase tracking-[0.25em]">Marketing</span>
             </div>
-            {ai.stage_scores
+            {stageScores
               .filter(s => ['04', '03', '02'].includes(normalizeTravaId(s.trava, s.nome)))
               .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
               .map(score => renderTravaSlider(score))}
-            {ai.stage_scores.filter(s => ['04', '03', '02'].includes(normalizeTravaId(s.trava, s.nome))).length === 0 && (
+            {stageScores.filter(s => ['04', '03', '02'].includes(normalizeTravaId(s.trava, s.nome))).length === 0 && (
               <p className="text-[11px] text-muted-foreground italic p-4">Nenhuma trava encontrada nesta coluna</p>
             )}
           </div>
@@ -823,17 +825,17 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           <div className="flex items-center gap-2 text-foreground/60 mb-2 px-1">
             <span className="text-[11px] font-black uppercase tracking-[0.25em]">Topo de Funil</span>
           </div>
-          {ai.stage_scores
+          {stageScores
             .filter(s => normalizeTravaId(s.trava, s.nome) === '01')
             .map(score => renderTravaSlider(score))}
-          {ai.stage_scores.filter(s => normalizeTravaId(s.trava, s.nome) === '01').length === 0 && (
+          {stageScores.filter(s => normalizeTravaId(s.trava, s.nome) === '01').length === 0 && (
             <p className="text-[11px] text-muted-foreground italic p-4">Trava 01 não encontrada nos dados</p>
           )}
         </div>
 
         {/* Bottom: Cegueira (00) */}
         <div className="mt-8 pt-6 border-t border-border relative z-10 space-y-5">
-          {ai.stage_scores
+          {stageScores
             .filter(s => s.trava === 'cegueira' || normalizeTravaId(s.trava, s.nome) === '00')
             .map(score => (
               <TravaSliderCard
@@ -978,7 +980,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {ai.stage_scores.map(score => {
+                  {stageScores.map(score => {
                     const nId = normalizeTravaId(score.trava, score.nome);
                     const isGargalo = nId === activeTrava;
                     return (
