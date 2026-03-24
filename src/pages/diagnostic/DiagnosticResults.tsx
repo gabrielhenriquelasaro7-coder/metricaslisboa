@@ -201,7 +201,7 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction
 
   return (
     <div className={cn(
-      "relative space-y-4 p-5 rounded-[1.5rem] transition-all duration-500 border shadow-xl",
+      "relative space-y-4 p-5 rounded-[1.5rem] transition-all duration-500 border",
       isRestriction
         ? "bg-red-50/50 dark:bg-red-950/20 border-red-500/30 shadow-[0_0_20px_rgba(220,38,38,0.1)]"
         : isNaoAplica
