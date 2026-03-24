@@ -269,7 +269,7 @@ export default function DiagnosticTOC() {
                         <button
                           key={sp.id}
                           onClick={() => handleStartNew(sp.id)}
-                          className="w-full flex items-center justify-between p-4 rounded-2xl bg-muted/30 dark:bg-black border border-border hover:border-red-600/50 transition-all text-left group"
+                          className="w-full flex items-center justify-between p-4 rounded-2xl bg-muted/30 border border-border hover:border-red-600/50 transition-all text-left group"
                         >
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center border border-border group-hover:border-red-600/30">
@@ -290,17 +290,17 @@ export default function DiagnosticTOC() {
 
             {/* Stats Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-4 bg-muted/40 dark:bg-black/60 border border-border rounded-xl flex flex-col gap-1">
+              <div className="p-4 bg-muted/40 border border-border rounded-xl flex flex-col gap-1">
                 <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Total Analisado</span>
                 <span className="text-2xl font-black text-foreground tracking-tighter">{projects.length} <span className="text-xs text-muted-foreground font-bold uppercase">Projetos</span></span>
               </div>
-              <div className="p-4 bg-muted/40 dark:bg-black/60 border border-border rounded-xl flex flex-col gap-1">
+              <div className="p-4 bg-muted/40 border border-border rounded-xl flex flex-col gap-1">
                 <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Restrição Principal</span>
                 <span className="text-sm font-black text-red-500 uppercase italic">
                   {projects.length > 0 ? 'Exposição (07)' : '—'}
                 </span>
               </div>
-              <div className="p-4 bg-muted/40 dark:bg-black/60 border border-border rounded-xl flex flex-col gap-1">
+              <div className="p-4 bg-muted/40 border border-border rounded-xl flex flex-col gap-1">
                 <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Completos</span>
                 <span className="text-2xl font-black text-emerald-500 tracking-tighter">
                   {projects.filter(p => p.status === 'completo').length}
@@ -344,7 +344,7 @@ export default function DiagnosticTOC() {
               <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Período de Análise:</span>
               <div className="flex gap-2">
                 <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
-                  <SelectTrigger className="w-[120px] h-8 bg-muted/50 dark:bg-black/40 border-border text-[10px] font-bold uppercase rounded-lg">
+                  <SelectTrigger className="w-[120px] h-8 bg-muted/50 border-border text-[10px] font-bold uppercase rounded-lg">
                     <SelectValue placeholder="Mês" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border text-popover-foreground">
@@ -357,7 +357,7 @@ export default function DiagnosticTOC() {
                 </Select>
 
                 <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
-                  <SelectTrigger className="w-[100px] h-8 bg-muted/50 dark:bg-black/40 border-border text-[10px] font-bold uppercase rounded-lg">
+                  <SelectTrigger className="w-[100px] h-8 bg-muted/50 border-border text-[10px] font-bold uppercase rounded-lg">
                     <SelectValue placeholder="Ano" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border text-popover-foreground">
@@ -437,7 +437,7 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
 }) {
   if (projects.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 bg-muted/30 dark:bg-zinc-950/50 rounded-[2.5rem] border border-border border-dashed">
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 bg-muted/30 rounded-[2.5rem] border border-border border-dashed">
         <div className="w-20 h-20 bg-card rounded-3xl flex items-center justify-center border border-border shadow-2xl">
           <FileText className="w-10 h-10 text-muted-foreground" />
         </div>
@@ -452,13 +452,13 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {projects.map(p => (
-        <Card key={p.id} className="relative overflow-hidden group p-5 bg-gradient-to-br from-card to-muted/20 dark:from-zinc-950 dark:to-black border-border hover:border-red-600/30 transition-all duration-500 rounded-[2rem] flex flex-col justify-between h-full shadow-xl">
+        <Card key={p.id} className="relative overflow-hidden group p-5 bg-card border-border hover:border-red-600/30 transition-all duration-500 rounded-[2rem] flex flex-col justify-between h-full shadow-xl">
           <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 blur-[50px] pointer-events-none group-hover:bg-red-600/10 transition-all duration-700" />
 
           <div className="relative z-10 space-y-5">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-muted dark:bg-black rounded-[1.25rem] flex items-center justify-center border border-border group-hover:border-red-600/30 transition-all shadow-inner">
+                <div className="w-12 h-12 bg-muted rounded-[1.25rem] flex items-center justify-center border border-border group-hover:border-red-600/30 transition-all shadow-inner">
                   <Globe className="w-6 h-6 text-muted-foreground group-hover:text-red-600" />
                 </div>
                 <div>
@@ -478,11 +478,11 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-muted/30 dark:bg-white/5 rounded-2xl border border-border flex flex-col gap-1">
+              <div className="p-3 bg-muted/30 rounded-2xl border border-border flex flex-col gap-1">
                 <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Meta de Receita</span>
                 <span className="text-xs font-black text-foreground">R$ {p.goal.value.toLocaleString()}</span>
               </div>
-              <div className="p-3 bg-muted/30 dark:bg-white/5 rounded-2xl border border-border flex flex-col gap-1">
+              <div className="p-3 bg-muted/30 rounded-2xl border border-border flex flex-col gap-1">
                 <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Última Escala</span>
                 <span className="text-xs font-black text-muted-foreground">Ativo</span>
               </div>

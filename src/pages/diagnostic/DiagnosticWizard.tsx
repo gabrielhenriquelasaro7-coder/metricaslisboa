@@ -503,7 +503,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Nome da Empresa</Label>
                   <Input
                     placeholder="Ex: TechCorp Brasil"
-                    className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xs font-bold px-4"
+                    className="h-12 rounded-2xl bg-background border-border text-foreground text-xs font-bold px-4"
                     value={identification.companyName}
                     onChange={e => setIdentification(p => ({ ...p, companyName: e.target.value }))}
                   />
@@ -512,7 +512,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Produto / Serviço Principal</Label>
                   <Input
                     placeholder="Ex: Software de gestão para PMEs"
-                    className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xs font-bold px-4"
+                    className="h-12 rounded-2xl bg-background border-border text-foreground text-xs font-bold px-4"
                     value={identification.product}
                     onChange={e => setIdentification(p => ({ ...p, product: e.target.value }))}
                   />
@@ -521,7 +521,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Segmento de Atuação</Label>
                   <Input
                     placeholder="Ex: SaaS B2B, Moda Feminina, Restaurantes..."
-                    className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xs font-bold px-4"
+                    className="h-12 rounded-2xl bg-background border-border text-foreground text-xs font-bold px-4"
                     value={identification.segment}
                     onChange={e => setIdentification(p => ({ ...p, segment: e.target.value }))}
                   />
@@ -530,7 +530,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Localização (Estado, Cidade, País)</Label>
                   <Input
                     placeholder="Ex: São Paulo, SP, Brasil"
-                    className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xs font-bold px-4"
+                    className="h-12 rounded-2xl bg-background border-border text-foreground text-xs font-bold px-4"
                     value={identification.location}
                     onChange={e => setIdentification(p => ({ ...p, location: e.target.value }))}
                   />
@@ -541,7 +541,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">ICP (Perfil de Cliente Ideal)</Label>
                 <Textarea
                   placeholder="Descreva seu cliente ideal: quem é, qual a dor principal, porte, cargo decisor..."
-                  className="min-h-[100px] rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xs font-bold p-4 resize-none"
+                  className="min-h-[100px] rounded-2xl bg-background border-border text-foreground text-xs font-bold p-4 resize-none"
                   value={identification.icp}
                   onChange={e => setIdentification(p => ({ ...p, icp: e.target.value }))}
                 />
@@ -559,7 +559,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                         "p-5 rounded-2xl border transition-all text-left space-y-3",
                         identification.businessModel === bm.value
                           ? "border-red-600 bg-red-600/5 shadow-lg shadow-red-600/10"
-                          : "border-border bg-muted/30 dark:bg-black hover:border-border/80"
+                          : "border-border bg-muted/30 hover:border-border/80"
                       )}
                     >
                       <div className={cn(
@@ -596,7 +596,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                     <Input
                       type="number"
                       placeholder="35"
-                      className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xl font-black text-center pr-8"
+                      className="h-12 rounded-2xl bg-background border-border text-foreground text-xl font-black text-center pr-8"
                       value={business.contributionMargin || ''}
                       onChange={e => setBusiness(p => ({ ...p, contributionMargin: parseFloat(e.target.value) || 0 }))}
                     />
@@ -612,7 +612,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                     <Input
                       type="number"
                       placeholder="2500"
-                      className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xl font-black text-center pl-12"
+                      className="h-12 rounded-2xl bg-background border-border text-foreground text-xl font-black text-center pl-12"
                       value={business.averageTicket || ''}
                       onChange={e => setBusiness(p => ({ ...p, averageTicket: parseFloat(e.target.value) || 0 }))}
                     />
@@ -628,7 +628,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                     <Input
                       type="number"
                       placeholder="300000"
-                      className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xl font-black text-center pl-12"
+                      className="h-12 rounded-2xl bg-background border-border text-foreground text-xl font-black text-center pl-12"
                       value={business.revenue || ''}
                       onChange={e => setBusiness(p => ({ ...p, revenue: parseFloat(e.target.value) || 0 }))}
                     />
@@ -663,7 +663,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
               </div>
 
               {/* TAM */}
-              <div className="p-5 bg-muted/30 dark:bg-black/50 border border-border rounded-2xl space-y-3">
+              <div className="p-5 bg-muted/30 border border-border rounded-2xl space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-red-600/10 text-red-600 border-none text-[8px] font-black">TAM</Badge>
                   <span className="text-[10px] text-muted-foreground font-bold uppercase">Total Addressable Market</span>
@@ -674,7 +674,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <Input
                     type="number"
                     placeholder="50000000"
-                    className="h-12 rounded-xl bg-muted/50 dark:bg-zinc-950 border-border text-foreground font-black text-center pl-12"
+                    className="h-12 rounded-xl bg-background border-border text-foreground font-black text-center pl-12"
                     value={market.tam || ''}
                     onChange={e => setMarket(p => ({ ...p, tam: parseFloat(e.target.value) || 0 }))}
                   />
@@ -682,7 +682,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
               </div>
 
               {/* SAM */}
-              <div className="p-5 bg-muted/30 dark:bg-black/50 border border-border rounded-2xl space-y-3">
+              <div className="p-5 bg-muted/30 border border-border rounded-2xl space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-amber-600/10 text-amber-500 border-none text-[8px] font-black">SAM</Badge>
                   <span className="text-[10px] text-muted-foreground font-bold uppercase">Serviceable Addressable Market</span>
@@ -693,7 +693,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <Input
                     type="number"
                     placeholder="15000000"
-                    className="h-12 rounded-xl bg-muted/50 dark:bg-zinc-950 border-border text-foreground font-black text-center pl-12"
+                    className="h-12 rounded-xl bg-background border-border text-foreground font-black text-center pl-12"
                     value={market.sam || ''}
                     onChange={e => setMarket(p => ({ ...p, sam: parseFloat(e.target.value) || 0 }))}
                   />
@@ -701,7 +701,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
               </div>
 
               {/* SOM */}
-              <div className="p-5 bg-muted/30 dark:bg-black/50 border border-border rounded-2xl space-y-3">
+              <div className="p-5 bg-muted/30 border border-border rounded-2xl space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-emerald-600/10 text-emerald-500 border-none text-[8px] font-black">SOM</Badge>
                   <span className="text-[10px] text-muted-foreground font-bold uppercase">Serviceable Obtainable Market</span>
@@ -712,7 +712,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <Input
                     type="number"
                     placeholder="3600000"
-                    className="h-12 rounded-xl bg-muted/50 dark:bg-zinc-950 border-border text-foreground font-black text-center pl-12"
+                    className="h-12 rounded-xl bg-background border-border text-foreground font-black text-center pl-12"
                     value={market.som || ''}
                     onChange={e => setMarket(p => ({ ...p, som: parseFloat(e.target.value) || 0 }))}
                   />
@@ -723,7 +723,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Fonte / Justificativa</Label>
                 <Input
                   placeholder="Ex: relatório Statista 2024, estimativa interna..."
-                  className="h-11 rounded-xl bg-muted/50 dark:bg-black border-border text-foreground"
+                    className="h-11 rounded-xl bg-background border-border text-foreground"
                   value={market.justification}
                   onChange={e => setMarket(p => ({ ...p, justification: e.target.value }))}
                 />
@@ -765,7 +765,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                     </div>
 
                     {/* N/A Toggle */}
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/30 dark:bg-zinc-900/50 border border-border">
+                     <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/30 border border-border">
                       <Checkbox
                         id={`nao-aplica-${trava.id}`}
                         checked={(funnelData[trava.id as keyof DiagnosticFunnelData] as any)?._nao_aplica === true}
@@ -808,7 +808,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                               placeholder={field.placeholder}
                               step="0.01"
                               className={cn(
-                                "h-12 rounded-xl bg-muted/50 dark:bg-black border-border text-foreground text-lg font-black text-center",
+                                "h-12 rounded-xl bg-background border-border text-foreground text-lg font-black text-center",
                                 isAuto && "border-emerald-600/20 bg-emerald-950/10"
                               )}
                               value={(funnelData[trava.id as keyof DiagnosticFunnelData] as any)?.[field.key] ?? ''}
