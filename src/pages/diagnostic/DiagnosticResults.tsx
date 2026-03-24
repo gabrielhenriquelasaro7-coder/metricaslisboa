@@ -909,7 +909,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                       )}
                       style={{
                         clipPath: stage.clipPath,
-                        boxShadow: isBottleneck ? `0 0 25px ${colors.glow}` : `0 0 15px ${colors.glow}`,
+                        boxShadow: isBottleneck ? `0 0 15px ${colors.glow}` : undefined,
                       }}
                     >
                       <div className="absolute inset-0 z-0" style={{ background: `radial-gradient(circle, ${isBottleneck ? 'rgba(239, 68, 68, 0.4)' : 'rgba(128, 128, 128, 0.05)'}, transparent)`, transform: 'scale(1.2)' }} />
