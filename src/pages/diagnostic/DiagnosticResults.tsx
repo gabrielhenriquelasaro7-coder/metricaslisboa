@@ -110,7 +110,7 @@ function getStageColor(status: string, isBottleneck: boolean) {
   switch (status) {
     case 'bom': return { text: 'text-emerald-500', glow: 'rgba(16, 185, 129, 0.2)', bg: 'from-emerald-500/10', border: 'border-emerald-500/20', barColor: 'bg-emerald-500', dotColor: 'bg-emerald-400' };
     case 'na_media': return { text: 'text-amber-500', glow: 'rgba(245, 158, 11, 0.2)', bg: 'from-amber-500/10', border: 'border-amber-500/20', barColor: 'bg-amber-500', dotColor: 'bg-amber-400' };
-    default: return { text: 'text-yellow-500', glow: 'rgba(234, 179, 8, 0.2)', bg: 'from-yellow-500/10', border: 'border-white/5 dark:border-white/5', barColor: 'bg-yellow-500', dotColor: 'bg-yellow-400' };
+    default: return { text: 'text-yellow-500', glow: 'rgba(234, 179, 8, 0.2)', bg: 'from-yellow-500/10', border: 'border-border', barColor: 'bg-yellow-500', dotColor: 'bg-yellow-400' };
   }
 }
 
@@ -203,10 +203,10 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction
     <div className={cn(
       "relative space-y-4 p-5 rounded-[1.5rem] transition-all duration-500 border shadow-xl",
       isRestriction
-        ? "bg-red-50/50 dark:bg-zinc-900/40 border-red-500/30 shadow-[0_0_20px_rgba(220,38,38,0.1)]"
+        ? "bg-red-50/50 dark:bg-red-950/20 border-red-500/30 shadow-[0_0_20px_rgba(220,38,38,0.1)]"
         : isNaoAplica
-          ? "bg-muted/30 dark:bg-zinc-900/20 border-border/50 opacity-60"
-          : "bg-white dark:bg-black/30 border-border dark:border-white/5"
+          ? "bg-muted/30 border-border/50 opacity-60"
+          : "bg-card border-border"
     )}>
       <div className="flex justify-between items-start">
         <div className="space-y-1">
@@ -724,7 +724,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </div>
 
       {/* ═══ SECTION 1: RESTRIÇÃO ATIVA ═══ */}
-      <Card className="relative overflow-hidden border-red-600/30 shadow-[0_0_50px_rgba(220,38,38,0.15)] dark:bg-zinc-950 bg-white rounded-[2.5rem] group w-full">
+      <Card className="relative overflow-hidden border-red-600/30 shadow-[0_0_50px_rgba(220,38,38,0.15)] bg-card rounded-[2.5rem] group w-full">
         <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/5 blur-[120px] pointer-events-none group-hover:bg-red-600/10 transition-all duration-700" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-red-600/3 blur-[100px] pointer-events-none" />
 
@@ -763,7 +763,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
               </p>
             </div>
 
-            <div className="bg-red-600/5 dark:bg-red-950/20 border border-red-600/20 p-5 rounded-2xl space-y-2">
+            <div className="bg-red-600/5 border border-red-600/20 p-5 rounded-2xl space-y-2">
               <p className="text-[9px] font-black text-red-500 uppercase tracking-widest">Injeção Recomendada</p>
               <p className="text-[11px] text-foreground font-semibold leading-relaxed">{ai.injecao_recomendada}</p>
             </div>
@@ -772,7 +772,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </Card>
 
       {/* ═══ SECTION 2: PAINEL DE TRAVAS ═══ */}
-      <Card className="p-4 sm:p-5 lg:p-6 dark:bg-zinc-950 bg-white rounded-[2.5rem] relative overflow-hidden flex flex-col shadow-2xl w-full">
+      <Card className="p-4 sm:p-5 lg:p-6 bg-card rounded-[2.5rem] relative overflow-hidden flex flex-col shadow-2xl w-full">
         <div className="absolute top-0 left-0 w-80 h-80 bg-red-600/5 blur-[120px] pointer-events-none" />
         <div className="flex justify-between items-start mb-8 relative z-10 mt-2">
           <div className="space-y-1">
@@ -793,6 +793,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
               .filter(s => ['07', '06', '05'].includes(normalizeTravaId(s.trava, s.nome)))
               .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
               .map(score => renderTravaSlider(score))}
+            {ai.stage_scores.filter(s => ['07', '06', '05'].includes(normalizeTravaId(s.trava, s.nome))).length === 0 && (
+              <p className="text-[11px] text-muted-foreground italic p-4">Nenhuma trava encontrada nesta coluna</p>
+            )}
           </div>
 
           {/* Marketing Column (04, 03, 02) */}
@@ -805,6 +808,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
               .filter(s => ['04', '03', '02'].includes(normalizeTravaId(s.trava, s.nome)))
               .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
               .map(score => renderTravaSlider(score))}
+            {ai.stage_scores.filter(s => ['04', '03', '02'].includes(normalizeTravaId(s.trava, s.nome))).length === 0 && (
+              <p className="text-[11px] text-muted-foreground italic p-4">Nenhuma trava encontrada nesta coluna</p>
+            )}
           </div>
         </div>
 
@@ -816,6 +822,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           {ai.stage_scores
             .filter(s => normalizeTravaId(s.trava, s.nome) === '01')
             .map(score => renderTravaSlider(score))}
+          {ai.stage_scores.filter(s => normalizeTravaId(s.trava, s.nome) === '01').length === 0 && (
+            <p className="text-[11px] text-muted-foreground italic p-4">Trava 01 não encontrada nos dados</p>
+          )}
         </div>
 
         {/* Bottom: Cegueira (00) */}
@@ -922,7 +931,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </div>
 
       {/* ═══ SECTION 4: SÍNTESE + ECONOMICS ═══ */}
-      <Card className="p-0 dark:bg-zinc-950 bg-white rounded-[2.5rem] overflow-hidden">
+      <Card className="p-0 bg-card rounded-[2.5rem] overflow-hidden">
         {/* Header band */}
         <div className="bg-gradient-to-r from-red-600/10 via-transparent to-transparent p-6 pb-4 border-b border-border">
           <div className="flex items-center gap-3">
@@ -1021,7 +1030,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
       {/* ═══ SECTION 5: LTP — LOGICAL THINKING PROCESS ═══ */}
       {/* CRT + Core Problem */}
-      <Card className="p-0 dark:bg-zinc-950 bg-white rounded-[2.5rem] overflow-hidden">
+      <Card className="p-0 bg-card rounded-[2.5rem] overflow-hidden">
         <div className="bg-gradient-to-r from-red-600/10 via-transparent to-transparent p-6 pb-4 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-red-600/10 rounded-xl flex items-center justify-center border border-red-600/20">
@@ -1238,7 +1247,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </Card>
 
       {/* ═══ SECTION 6: PLANO 90 DIAS ═══ */}
-      <Card className="p-6 dark:bg-zinc-950 bg-white rounded-[2.5rem] space-y-8">
+      <Card className="p-6 bg-card rounded-[2.5rem] space-y-8">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-red-600/10 rounded-xl flex items-center justify-center border border-red-600/20">
             <Zap className="w-5 h-5 text-red-600" />
