@@ -74,7 +74,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { createProject } = useProjects();
   const { squads } = useSquads();
-  const { isTech, isGerente, isCoordenador } = useCargo();
+  const { isTech, isGerente, isCoordenador, isInvestidor } = useCargo();
   const [customConfigOpen, setCustomConfigOpen] = useState(false);
 
   // Coordenador, Squad e Investidor
@@ -364,7 +364,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
-        {(isTech || isGerente || isCoordenador) && (
+        {(isTech || isGerente || isCoordenador || isInvestidor) && (
           <DialogTrigger asChild>
             <Button variant="outline" size="sm">
               <Plus className="w-3.5 h-3.5 mr-1" />
