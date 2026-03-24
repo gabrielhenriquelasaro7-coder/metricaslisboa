@@ -119,9 +119,9 @@ function getTravaConfigs(model: BusinessModel): TravaConfig[] {
           { key: 'no_show_rate', label: 'Taxa de Não-Comparecimento (%)', unit: '%', placeholder: '30', help: '% que não completou o compromisso (no-show, não enviou dados, etc.)' },
         ]},
         { id: 'trava06', label: 'Trava 06 — Decisão', description: 'Momento de decisão do lead (proposta, orçamento, contrato, etc.)', fields: [
-          { key: 'proposals', label: 'Ofertas Apresentadas', unit: 'número', placeholder: '35', help: 'Propostas enviadas, orçamentos apresentados, contratos oferecidos, etc.' },
-          { key: 'wins', label: 'Conversões Fechadas', unit: 'número', placeholder: '9', help: 'Propostas aceitas, contratos assinados, compras realizadas, etc.' },
-          { key: 'win_rate', label: 'Taxa de Conversão (%)', unit: '%', placeholder: '25', help: '% das ofertas que resultaram em fechamento' },
+          { key: 'proposals', label: 'Propostas / Orçamentos Enviados', unit: 'número', placeholder: '35', help: 'Propostas comerciais, orçamentos ou contratos apresentados ao lead' },
+          { key: 'wins', label: 'Vendas Fechadas', unit: 'número', placeholder: '9', help: 'Contratos assinados, vendas concluídas, negócios ganhos' },
+          { key: 'win_rate', label: 'Taxa de Fechamento (%)', unit: '%', placeholder: '25', help: '% das propostas que resultaram em venda' },
         ]},
         { id: 'trava07', label: 'Trava 07 — Retenção', description: 'Permanência, recompra e fidelização do cliente', fields: [
           { key: 'churn_rate', label: 'Taxa de Perda / Churn (%)', unit: '%', placeholder: '3', help: '% de clientes que deixaram de comprar, cancelaram ou não retornaram' },

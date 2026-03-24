@@ -964,8 +964,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           <div className="bg-muted/20 border border-border rounded-2xl p-6">
             {ai.sintese.split('\n\n').filter(Boolean).map((paragraph, idx) => (
               <p key={idx} className={cn(
-                "text-sm leading-relaxed",
-                idx === 0 ? "text-foreground font-semibold" : "text-muted-foreground mt-4"
+                "text-sm leading-relaxed text-foreground",
+                idx === 0 ? "font-semibold" : "mt-4"
               )}>
                 {paragraph.trim()}
               </p>
