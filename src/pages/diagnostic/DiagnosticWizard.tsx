@@ -118,14 +118,14 @@ function getTravaConfigs(model: BusinessModel): TravaConfig[] {
           { key: 'meetings_done', label: 'Compromissos Realizados / Concluídos', unit: 'número', placeholder: '42', help: 'Reuniões feitas, dados recebidos, visitas realizadas, etc.' },
           { key: 'no_show_rate', label: 'Taxa de Não-Comparecimento (%)', unit: '%', placeholder: '30', help: '% que não completou o compromisso (no-show, não enviou dados, etc.)' },
         ]},
-        { id: 'trava06', label: 'Trava 06 — Decisão', description: 'Fechamento de propostas', fields: [
-          { key: 'proposals', label: 'Propostas Enviadas', unit: 'número', placeholder: '35', help: 'Total de propostas' },
-          { key: 'wins', label: 'Vendas Fechadas', unit: 'número', placeholder: '9', help: 'Propostas aceitas' },
-          { key: 'win_rate', label: 'Win Rate (%)', unit: '%', placeholder: '25', help: '% de fechamento' },
+        { id: 'trava06', label: 'Trava 06 — Decisão', description: 'Momento de decisão do lead (proposta, orçamento, contrato, etc.)', fields: [
+          { key: 'proposals', label: 'Ofertas Apresentadas', unit: 'número', placeholder: '35', help: 'Propostas enviadas, orçamentos apresentados, contratos oferecidos, etc.' },
+          { key: 'wins', label: 'Conversões Fechadas', unit: 'número', placeholder: '9', help: 'Propostas aceitas, contratos assinados, compras realizadas, etc.' },
+          { key: 'win_rate', label: 'Taxa de Conversão (%)', unit: '%', placeholder: '25', help: '% das ofertas que resultaram em fechamento' },
         ]},
-        { id: 'trava07', label: 'Trava 07 — Retenção', description: 'Churn e recompra', fields: [
-          { key: 'churn_rate', label: 'Churn Mensal (%)', unit: '%', placeholder: '3', help: '% de cancelamento mensal' },
-          { key: 'repurchase_rate', label: 'Taxa de Recompra (%)', unit: '%', placeholder: '20', help: '% de recompra' },
+        { id: 'trava07', label: 'Trava 07 — Retenção', description: 'Permanência, recompra e fidelização do cliente', fields: [
+          { key: 'churn_rate', label: 'Taxa de Perda / Churn (%)', unit: '%', placeholder: '3', help: '% de clientes que deixaram de comprar, cancelaram ou não retornaram' },
+          { key: 'repurchase_rate', label: 'Taxa de Recompra / Renovação (%)', unit: '%', placeholder: '20', help: '% de clientes que compraram novamente, renovaram contrato, etc.' },
         ]},
       ];
 
