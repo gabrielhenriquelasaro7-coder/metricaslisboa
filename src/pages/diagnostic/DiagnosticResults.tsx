@@ -275,6 +275,10 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
   const scoreMap = new Map(ai.stage_scores.map(s => [normalizeTravaId(s.trava, s.nome), s]));
   const activeTrava = normalizeTravaId(ai.trava_identificada, ai.trava_nome);
 
+  // Debug: log stage_scores normalization
+  console.log('[DiagnosticResults] stage_scores raw:', ai.stage_scores.map(s => ({ trava: s.trava, nome: s.nome, normalized: normalizeTravaId(s.trava, s.nome), status: s.status })));
+  console.log('[DiagnosticResults] activeTrava:', activeTrava, 'from:', ai.trava_identificada, ai.trava_nome);
+
   const handleExportPDF = () => {
     try {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
