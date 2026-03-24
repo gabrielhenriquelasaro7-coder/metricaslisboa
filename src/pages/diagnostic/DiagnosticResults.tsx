@@ -1279,8 +1279,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             { phase: 'Mês 02', data: ai.plano_90_dias.mes_2 },
             { phase: 'Mês 03', data: ai.plano_90_dias.mes_3 },
           ].map((p, i) => (
-            <div key={i} className="bg-muted/30 border border-border p-8 rounded-[2.5rem] space-y-6 relative overflow-hidden group hover:border-red-600/20 transition-all">
-              <div className="absolute -top-10 -right-10 w-32 h-32 bg-red-600/5 rounded-full blur-3xl group-hover:bg-red-600/10 transition-all" />
+            <div key={i} className="bg-muted/20 dark:bg-muted/30 border border-border p-8 rounded-[2.5rem] space-y-6 relative overflow-hidden group hover:border-red-600/20 transition-all">
+              <div className="absolute -top-10 -right-10 w-32 h-32 bg-red-600/3 dark:bg-red-600/5 rounded-full blur-3xl group-hover:bg-red-600/5 dark:group-hover:bg-red-600/10 transition-all" />
               <Badge className="bg-muted border-border text-muted-foreground text-[9px] font-black uppercase tracking-widest">{p.phase}</Badge>
               <h5 className="text-lg font-black text-foreground uppercase tracking-tighter italic">{p.data.titulo}</h5>
               <ul className="space-y-3">

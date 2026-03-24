@@ -247,7 +247,7 @@ export default function DiagnosticTOC() {
                     <Plus className="w-4 h-4" /> NOVO DIAGNÓSTICO
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md bg-card border-border text-foreground rounded-[2rem] shadow-2xl">
+                <DialogContent className="sm:max-w-md bg-card border-border text-foreground rounded-[2rem] shadow-lg dark:shadow-2xl">
                   <DialogHeader>
                     <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground mb-6 italic">Iniciar Diagnóstico</DialogTitle>
                   </DialogHeader>
