@@ -90,12 +90,12 @@ function getTravaConfigs(model: BusinessModel): TravaConfig[] {
           { key: 'checkouts', label: 'Checkouts Iniciados', unit: 'número', placeholder: '320', help: 'Quantos iniciaram o checkout' },
           { key: 'checkout_rate', label: 'Taxa de Checkout (%)', unit: '%', placeholder: '40', help: '% do carrinho que inicia checkout' },
         ]},
-        { id: 'trava06', label: 'Trava 06 — Pedido', description: 'Pedidos realizados', fields: [
-          { key: 'orders', label: 'Pedidos Realizados', unit: 'número', placeholder: '180', help: 'Vendas efetivadas' },
-          { key: 'order_rate', label: 'Taxa de Conversão Checkout→Pedido (%)', unit: '%', placeholder: '56', help: '% dos checkouts finalizados' },
+        { id: 'trava06', label: 'Trava 06 — Pedido', description: 'Conversão final do checkout em pedido confirmado', fields: [
+          { key: 'orders', label: 'Pedidos Confirmados', unit: 'número', placeholder: '180', help: 'Pedidos finalizados, pagamentos confirmados, etc.' },
+          { key: 'order_rate', label: 'Taxa de Conversão Checkout→Pedido (%)', unit: '%', placeholder: '56', help: '% dos checkouts que resultaram em pedido confirmado' },
         ]},
-        { id: 'trava07', label: 'Trava 07 — Recompra', description: 'Retenção e recompra', fields: [
-          { key: 'repurchase_rate', label: 'Taxa de Recompra (%)', unit: '%', placeholder: '25', help: '% de clientes que compram novamente' },
+        { id: 'trava07', label: 'Trava 07 — Recompra', description: 'Retenção, recompra e fidelização', fields: [
+          { key: 'repurchase_rate', label: 'Taxa de Recompra / Retorno (%)', unit: '%', placeholder: '25', help: '% de clientes que compraram novamente ou retornaram' },
           { key: 'ltv', label: 'LTV Médio (R$)', unit: 'R$', placeholder: '450', help: 'Valor vitalício do cliente' },
         ]},
       ];
@@ -118,14 +118,14 @@ function getTravaConfigs(model: BusinessModel): TravaConfig[] {
           { key: 'meetings_done', label: 'Compromissos Realizados / Concluídos', unit: 'número', placeholder: '42', help: 'Reuniões feitas, dados recebidos, visitas realizadas, etc.' },
           { key: 'no_show_rate', label: 'Taxa de Não-Comparecimento (%)', unit: '%', placeholder: '30', help: '% que não completou o compromisso (no-show, não enviou dados, etc.)' },
         ]},
-        { id: 'trava06', label: 'Trava 06 — Decisão', description: 'Fechamento de propostas', fields: [
-          { key: 'proposals', label: 'Propostas Enviadas', unit: 'número', placeholder: '35', help: 'Total de propostas' },
-          { key: 'wins', label: 'Vendas Fechadas', unit: 'número', placeholder: '9', help: 'Propostas aceitas' },
-          { key: 'win_rate', label: 'Win Rate (%)', unit: '%', placeholder: '25', help: '% de fechamento' },
+        { id: 'trava06', label: 'Trava 06 — Decisão', description: 'Momento de decisão do lead (proposta, orçamento, contrato, etc.)', fields: [
+          { key: 'proposals', label: 'Ofertas Apresentadas', unit: 'número', placeholder: '35', help: 'Propostas enviadas, orçamentos apresentados, contratos oferecidos, etc.' },
+          { key: 'wins', label: 'Conversões Fechadas', unit: 'número', placeholder: '9', help: 'Propostas aceitas, contratos assinados, compras realizadas, etc.' },
+          { key: 'win_rate', label: 'Taxa de Conversão (%)', unit: '%', placeholder: '25', help: '% das ofertas que resultaram em fechamento' },
         ]},
-        { id: 'trava07', label: 'Trava 07 — Retenção', description: 'Churn e recompra', fields: [
-          { key: 'churn_rate', label: 'Churn Mensal (%)', unit: '%', placeholder: '3', help: '% de cancelamento mensal' },
-          { key: 'repurchase_rate', label: 'Taxa de Recompra (%)', unit: '%', placeholder: '20', help: '% de recompra' },
+        { id: 'trava07', label: 'Trava 07 — Retenção', description: 'Permanência, recompra e fidelização do cliente', fields: [
+          { key: 'churn_rate', label: 'Taxa de Perda / Churn (%)', unit: '%', placeholder: '3', help: '% de clientes que deixaram de comprar, cancelaram ou não retornaram' },
+          { key: 'repurchase_rate', label: 'Taxa de Recompra / Renovação (%)', unit: '%', placeholder: '20', help: '% de clientes que compraram novamente, renovaram contrato, etc.' },
         ]},
       ];
 
@@ -149,12 +149,12 @@ function getTravaConfigs(model: BusinessModel): TravaConfig[] {
           { key: 'qualification_rate', label: 'Taxa de Qualificação (%)', unit: '%', placeholder: '40', help: '% dos interessados que qualificam' },
         ]},
         // Trava 05 = NULL for PDV
-        { id: 'trava06', label: 'Trava 06 — Venda', description: 'Vendas realizadas', fields: [
-          { key: 'sales', label: 'Vendas Realizadas', unit: 'número', placeholder: '120', help: 'Total de vendas' },
-          { key: 'conversion_rate', label: 'Taxa de Conversão (%)', unit: '%', placeholder: '60', help: '% dos qualificados que compram' },
+        { id: 'trava06', label: 'Trava 06 — Venda', description: 'Conversão final em venda', fields: [
+          { key: 'sales', label: 'Vendas Concretizadas', unit: 'número', placeholder: '120', help: 'Vendas finalizadas, pedidos confirmados, etc.' },
+          { key: 'conversion_rate', label: 'Taxa de Conversão (%)', unit: '%', placeholder: '60', help: '% dos qualificados que efetivaram a compra' },
         ]},
-        { id: 'trava07', label: 'Trava 07 — Recompra', description: 'Retenção e recompra', fields: [
-          { key: 'repurchase_rate', label: 'Taxa de Recompra (%)', unit: '%', placeholder: '35', help: '% de recompra' },
+        { id: 'trava07', label: 'Trava 07 — Recompra', description: 'Retenção, retorno e fidelização', fields: [
+          { key: 'repurchase_rate', label: 'Taxa de Recompra / Retorno (%)', unit: '%', placeholder: '35', help: '% de clientes que retornaram ou compraram novamente' },
           { key: 'frequency', label: 'Frequência Mensal', unit: 'vezes', placeholder: '2.5', help: 'Vezes que o cliente volta por mês' },
         ]},
       ];
@@ -226,17 +226,24 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
 
     setIsLoadingMetrics(true);
     try {
-      // Fetch Meta Ads daily metrics
+      // Filter last 90 days
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      const sinceDate = ninetyDaysAgo.toISOString().split('T')[0];
+
+      // Fetch Meta Ads daily metrics (last 90 days)
       const { data: metaMetrics, error: metaError } = await supabase
         .from('ads_daily_metrics')
         .select('spend, impressions, clicks, leads_count, reach, cpm, cpc, ctr, cpa')
-        .eq('project_id', systemProjectId);
+        .eq('project_id', systemProjectId)
+        .gte('date', sinceDate);
 
-      // Fetch Google Ads daily metrics
+      // Fetch Google Ads daily metrics (last 90 days)
       const { data: googleMetrics, error: googleError } = await supabase
         .from('google_ads_daily_metrics')
         .select('spend, impressions, clicks, conversions, cpm, cpc, ctr')
-        .eq('project_id', systemProjectId);
+        .eq('project_id', systemProjectId)
+        .gte('date', sinceDate);
 
       let totalImpressions = 0, totalClicks = 0, totalSpend = 0, totalLeads = 0;
 
