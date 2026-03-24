@@ -787,8 +787,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </Card>
 
       {/* ═══ SECTION 2: PAINEL DE TRAVAS ═══ */}
-      <Card className="p-4 sm:p-5 lg:p-6 bg-card rounded-[2.5rem] relative overflow-hidden flex flex-col shadow-2xl w-full">
-        <div className="absolute top-0 left-0 w-80 h-80 bg-red-600/5 blur-[120px] pointer-events-none" />
+      <Card className="p-4 sm:p-5 lg:p-6 bg-card rounded-[2.5rem] relative overflow-hidden flex flex-col shadow-md dark:shadow-2xl w-full">
+        <div className="absolute top-0 left-0 w-80 h-80 bg-red-600/3 dark:bg-red-600/5 blur-[120px] pointer-events-none" />
         <div className="flex justify-between items-start mb-8 relative z-10 mt-2">
           <div className="space-y-1">
             <h4 className="text-xl font-black uppercase tracking-tight text-foreground italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Painel de Travas</h4>
