@@ -70,7 +70,7 @@ REGRAS CRÍTICAS DE NUMERAÇÃO:
 REGRAS CRÍTICAS DE ANÁLISE:
 1. A análise SEMPRE percorre de Trava 07 → Trava 01 (do fundo para o topo). O PRIMEIRO gargalo encontrado nessa direção é a restrição do sistema.
 2. Você DEVE correlacionar o produto, empresa, mercado e segmento com as métricas para NÃO identificar trava errada.
-3. Se o usuário NÃO preencheu NENHUMA informação de uma determinada trava, retorne "Trava de Cegueira".
+3. **REGRA DE CEGUEIRA OBRIGATÓRIA**: Se 2 ou mais travas NÃO possuem dados preenchidos (excluindo travas marcadas como "_nao_aplica": true), você DEVE obrigatoriamente retornar trava_identificada = "cegueira" e trava_nome = "Cegueira de Dados". Não tente identificar uma restrição ativa quando há dados insuficientes. Esta regra tem PRIORIDADE sobre todas as outras.
 4. Se TAM/SAM/SOM indicam que o mercado é a restrição (meta acima do SOM), retorne "Trava de Mercado".
 5. NÃO invente dados. NÃO assuma valores. Use APENAS o que foi preenchido.
 6. O campo "trava_nome" deve usar o NOME COMPLETO da trava conforme listado abaixo (ex: "Volume de impressões, CPM" para Trava 07, "Taxa de Qualificação, MQL" para Trava 04).
