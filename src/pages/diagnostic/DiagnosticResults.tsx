@@ -1262,7 +1262,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </Card>
 
       {/* ═══ SECTION 6: PLANO 90 DIAS ═══ */}
-      <Card className="p-6 bg-card rounded-[2.5rem] space-y-8">
+      <Card className="p-6 bg-card rounded-[2.5rem] space-y-8 shadow-md dark:shadow-none">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-red-600/10 rounded-xl flex items-center justify-center border border-red-600/20">
             <Zap className="w-5 h-5 text-red-600" />
