@@ -184,11 +184,11 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction
   const effectiveStatus = isNaoAplica ? 'nao_aplica' : status;
 
   const dotColor = isBottleneck || effectiveStatus === 'critico'
-    ? 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)]'
+    ? 'bg-red-500 dark:shadow-[0_0_12px_rgba(239,68,68,0.8)]'
     : effectiveStatus === 'na_media'
-      ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.8)]'
+      ? 'bg-amber-500 dark:shadow-[0_0_12px_rgba(245,158,11,0.8)]'
       : effectiveStatus === 'bom'
-        ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]'
+        ? 'bg-emerald-500 dark:shadow-[0_0_12px_rgba(16,185,129,0.8)]'
         : 'bg-muted-foreground/50';
 
   const tagColor = isNaoAplica ? "text-blue-400 border-blue-400/20" :
