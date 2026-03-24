@@ -90,12 +90,12 @@ function getTravaConfigs(model: BusinessModel): TravaConfig[] {
           { key: 'checkouts', label: 'Checkouts Iniciados', unit: 'número', placeholder: '320', help: 'Quantos iniciaram o checkout' },
           { key: 'checkout_rate', label: 'Taxa de Checkout (%)', unit: '%', placeholder: '40', help: '% do carrinho que inicia checkout' },
         ]},
-        { id: 'trava06', label: 'Trava 06 — Pedido', description: 'Pedidos realizados', fields: [
-          { key: 'orders', label: 'Pedidos Realizados', unit: 'número', placeholder: '180', help: 'Vendas efetivadas' },
-          { key: 'order_rate', label: 'Taxa de Conversão Checkout→Pedido (%)', unit: '%', placeholder: '56', help: '% dos checkouts finalizados' },
+        { id: 'trava06', label: 'Trava 06 — Pedido', description: 'Conversão final do checkout em pedido confirmado', fields: [
+          { key: 'orders', label: 'Pedidos Confirmados', unit: 'número', placeholder: '180', help: 'Pedidos finalizados, pagamentos confirmados, etc.' },
+          { key: 'order_rate', label: 'Taxa de Conversão Checkout→Pedido (%)', unit: '%', placeholder: '56', help: '% dos checkouts que resultaram em pedido confirmado' },
         ]},
-        { id: 'trava07', label: 'Trava 07 — Recompra', description: 'Retenção e recompra', fields: [
-          { key: 'repurchase_rate', label: 'Taxa de Recompra (%)', unit: '%', placeholder: '25', help: '% de clientes que compram novamente' },
+        { id: 'trava07', label: 'Trava 07 — Recompra', description: 'Retenção, recompra e fidelização', fields: [
+          { key: 'repurchase_rate', label: 'Taxa de Recompra / Retorno (%)', unit: '%', placeholder: '25', help: '% de clientes que compraram novamente ou retornaram' },
           { key: 'ltv', label: 'LTV Médio (R$)', unit: 'R$', placeholder: '450', help: 'Valor vitalício do cliente' },
         ]},
       ];
