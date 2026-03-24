@@ -143,7 +143,7 @@ function getDisplayPercent(score: { status: string; valor_informado?: string | n
     case 'critico': return 18;
     case 'na_media': return 48;
     case 'bom': return 82;
-    default: return 50; // sem_dados — center/gray
+    default: return 15; // sem_dados — red zone
   }
 }
 
