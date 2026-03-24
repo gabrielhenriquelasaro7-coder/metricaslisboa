@@ -226,17 +226,24 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
 
     setIsLoadingMetrics(true);
     try {
-      // Fetch Meta Ads daily metrics
+      // Filter last 90 days
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      const sinceDate = ninetyDaysAgo.toISOString().split('T')[0];
+
+      // Fetch Meta Ads daily metrics (last 90 days)
       const { data: metaMetrics, error: metaError } = await supabase
         .from('ads_daily_metrics')
         .select('spend, impressions, clicks, leads_count, reach, cpm, cpc, ctr, cpa')
-        .eq('project_id', systemProjectId);
+        .eq('project_id', systemProjectId)
+        .gte('date', sinceDate);
 
-      // Fetch Google Ads daily metrics
+      // Fetch Google Ads daily metrics (last 90 days)
       const { data: googleMetrics, error: googleError } = await supabase
         .from('google_ads_daily_metrics')
         .select('spend, impressions, clicks, conversions, cpm, cpc, ctr')
-        .eq('project_id', systemProjectId);
+        .eq('project_id', systemProjectId)
+        .gte('date', sinceDate);
 
       let totalImpressions = 0, totalClicks = 0, totalSpend = 0, totalLeads = 0;
 
