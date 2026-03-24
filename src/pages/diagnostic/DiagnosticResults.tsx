@@ -184,11 +184,11 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction
   const effectiveStatus = isNaoAplica ? 'nao_aplica' : status;
 
   const dotColor = isBottleneck || effectiveStatus === 'critico'
-    ? 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)]'
+    ? 'bg-red-500 dark:shadow-[0_0_12px_rgba(239,68,68,0.8)]'
     : effectiveStatus === 'na_media'
-      ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.8)]'
+      ? 'bg-amber-500 dark:shadow-[0_0_12px_rgba(245,158,11,0.8)]'
       : effectiveStatus === 'bom'
-        ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]'
+        ? 'bg-emerald-500 dark:shadow-[0_0_12px_rgba(16,185,129,0.8)]'
         : 'bg-muted-foreground/50';
 
   const tagColor = isNaoAplica ? "text-blue-400 border-blue-400/20" :
@@ -201,9 +201,9 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction
 
   return (
     <div className={cn(
-      "relative space-y-4 p-5 rounded-[1.5rem] transition-all duration-500 border shadow-xl",
+      "relative space-y-4 p-5 rounded-[1.5rem] transition-all duration-500 border",
       isRestriction
-        ? "bg-red-50/50 dark:bg-red-950/20 border-red-500/30 shadow-[0_0_20px_rgba(220,38,38,0.1)]"
+        ? "bg-red-50/50 dark:bg-red-950/20 border-red-500/30 shadow-sm dark:shadow-[0_0_20px_rgba(220,38,38,0.1)]"
         : isNaoAplica
           ? "bg-muted/30 border-border/50 opacity-60"
           : "bg-card border-border"
@@ -739,9 +739,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </div>
 
       {/* ═══ SECTION 1: RESTRIÇÃO ATIVA ═══ */}
-      <Card className="relative overflow-hidden border-red-600/30 shadow-[0_0_50px_rgba(220,38,38,0.15)] bg-card rounded-[2.5rem] group w-full">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/5 blur-[120px] pointer-events-none group-hover:bg-red-600/10 transition-all duration-700" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-red-600/3 blur-[100px] pointer-events-none" />
+      <Card className="relative overflow-hidden border-red-600/20 dark:border-red-600/30 shadow-md dark:shadow-[0_0_50px_rgba(220,38,38,0.15)] bg-card rounded-[2.5rem] group w-full">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/3 dark:bg-red-600/5 blur-[120px] pointer-events-none group-hover:bg-red-600/5 dark:group-hover:bg-red-600/10 transition-all duration-700" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-red-600/2 dark:bg-red-600/3 blur-[100px] pointer-events-none" />
 
         <div className="relative z-10 p-8 md:p-10 space-y-8">
           {/* Top: Badge + Title */}
@@ -787,8 +787,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </Card>
 
       {/* ═══ SECTION 2: PAINEL DE TRAVAS ═══ */}
-      <Card className="p-4 sm:p-5 lg:p-6 bg-card rounded-[2.5rem] relative overflow-hidden flex flex-col shadow-2xl w-full">
-        <div className="absolute top-0 left-0 w-80 h-80 bg-red-600/5 blur-[120px] pointer-events-none" />
+      <Card className="p-4 sm:p-5 lg:p-6 bg-card rounded-[2.5rem] relative overflow-hidden flex flex-col shadow-md dark:shadow-2xl w-full">
+        <div className="absolute top-0 left-0 w-80 h-80 bg-red-600/3 dark:bg-red-600/5 blur-[120px] pointer-events-none" />
         <div className="flex justify-between items-start mb-8 relative z-10 mt-2">
           <div className="space-y-1">
             <h4 className="text-xl font-black uppercase tracking-tight text-foreground italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Painel de Travas</h4>
@@ -863,7 +863,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </Card>
 
       {/* ═══ SECTION 3: BOWTIE FUNNEL ═══ */}
-      <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-4 md:p-6 shadow-2xl md:px-8 md:py-8 w-full">
+      <div className="bg-card border border-border rounded-xl p-4 md:p-6 shadow-md dark:shadow-2xl md:px-8 md:py-8 w-full">
         <div className="flex items-center justify-between mb-8 px-2">
           <div className="flex flex-col">
             <h5 className="text-[12px] font-black text-foreground uppercase tracking-widest italic">Fluxo de RECEITA</h5>
@@ -909,7 +909,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                       )}
                       style={{
                         clipPath: stage.clipPath,
-                        boxShadow: isBottleneck ? `0 0 25px ${colors.glow}` : `0 0 15px ${colors.glow}`,
+                        boxShadow: isBottleneck ? `0 0 15px ${colors.glow}` : undefined,
                       }}
                     >
                       <div className="absolute inset-0 z-0" style={{ background: `radial-gradient(circle, ${isBottleneck ? 'rgba(239, 68, 68, 0.4)' : 'rgba(128, 128, 128, 0.05)'}, transparent)`, transform: 'scale(1.2)' }} />
@@ -1109,7 +1109,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
               <span className="text-xs font-black text-foreground uppercase tracking-widest">Evaporating Cloud — Diagrama de Conflito</span>
             </div>
 
-            <div className="relative bg-gradient-to-b from-muted/40 to-muted/10 border border-border p-6 md:p-8 rounded-2xl space-y-8">
+            <div className="relative bg-muted/20 dark:bg-muted/40 border border-border p-6 md:p-8 rounded-2xl space-y-8">
               {/* Objective — centered top */}
               <div className="flex justify-center">
                 <div className="bg-blue-600/10 border-2 border-blue-600/30 px-8 py-5 rounded-2xl text-center max-w-lg shadow-lg shadow-blue-600/5 relative">
@@ -1262,7 +1262,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </Card>
 
       {/* ═══ SECTION 6: PLANO 90 DIAS ═══ */}
-      <Card className="p-6 bg-card rounded-[2.5rem] space-y-8">
+      <Card className="p-6 bg-card rounded-[2.5rem] space-y-8 shadow-md dark:shadow-none">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-red-600/10 rounded-xl flex items-center justify-center border border-red-600/20">
             <Zap className="w-5 h-5 text-red-600" />
@@ -1279,8 +1279,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             { phase: 'Mês 02', data: ai.plano_90_dias.mes_2 },
             { phase: 'Mês 03', data: ai.plano_90_dias.mes_3 },
           ].map((p, i) => (
-            <div key={i} className="bg-muted/30 border border-border p-8 rounded-[2.5rem] space-y-6 relative overflow-hidden group hover:border-red-600/20 transition-all">
-              <div className="absolute -top-10 -right-10 w-32 h-32 bg-red-600/5 rounded-full blur-3xl group-hover:bg-red-600/10 transition-all" />
+            <div key={i} className="bg-muted/20 dark:bg-muted/30 border border-border p-8 rounded-[2.5rem] space-y-6 relative overflow-hidden group hover:border-red-600/20 transition-all">
+              <div className="absolute -top-10 -right-10 w-32 h-32 bg-red-600/3 dark:bg-red-600/5 rounded-full blur-3xl group-hover:bg-red-600/5 dark:group-hover:bg-red-600/10 transition-all" />
               <Badge className="bg-muted border-border text-muted-foreground text-[9px] font-black uppercase tracking-widest">{p.phase}</Badge>
               <h5 className="text-lg font-black text-foreground uppercase tracking-tighter italic">{p.data.titulo}</h5>
               <ul className="space-y-3">

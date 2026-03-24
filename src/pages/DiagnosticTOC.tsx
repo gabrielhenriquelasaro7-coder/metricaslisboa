@@ -221,8 +221,8 @@ export default function DiagnosticTOC() {
     <DashboardLayout>
       <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500 w-full">
         {/* ── HEADER ── */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-red-50 via-white to-white dark:from-[#3b0909] dark:via-[#1a0505] dark:to-[#0a0202] border border-red-200 dark:border-red-900/30 rounded-[2rem] p-6 sm:p-8 shadow-2xl">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(220,38,38,0.15),transparent_60%)] pointer-events-none" />
+        <div className="relative overflow-hidden bg-gradient-to-br from-red-50 via-white to-white dark:from-[#3b0909] dark:via-[#1a0505] dark:to-[#0a0202] border border-red-200/60 dark:border-red-900/30 rounded-[2rem] p-6 sm:p-8 shadow-md dark:shadow-2xl">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(220,38,38,0.08),transparent_60%)] dark:bg-[radial-gradient(ellipse_at_top_right,rgba(220,38,38,0.15),transparent_60%)] pointer-events-none" />
 
           <div className="relative z-10 space-y-6">
             {/* Título + Botão */}
@@ -247,7 +247,7 @@ export default function DiagnosticTOC() {
                     <Plus className="w-4 h-4" /> NOVO DIAGNÓSTICO
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md bg-card border-border text-foreground rounded-[2rem] shadow-2xl">
+                <DialogContent className="sm:max-w-md bg-card border-border text-foreground rounded-[2rem] shadow-lg dark:shadow-2xl">
                   <DialogHeader>
                     <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground mb-6 italic">Iniciar Diagnóstico</DialogTitle>
                   </DialogHeader>
