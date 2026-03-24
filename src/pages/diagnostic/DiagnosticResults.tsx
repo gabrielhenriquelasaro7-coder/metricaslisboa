@@ -739,9 +739,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </div>
 
       {/* ═══ SECTION 1: RESTRIÇÃO ATIVA ═══ */}
-      <Card className="relative overflow-hidden border-red-600/30 shadow-[0_0_50px_rgba(220,38,38,0.15)] bg-card rounded-[2.5rem] group w-full">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/5 blur-[120px] pointer-events-none group-hover:bg-red-600/10 transition-all duration-700" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-red-600/3 blur-[100px] pointer-events-none" />
+      <Card className="relative overflow-hidden border-red-600/20 dark:border-red-600/30 shadow-md dark:shadow-[0_0_50px_rgba(220,38,38,0.15)] bg-card rounded-[2.5rem] group w-full">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/3 dark:bg-red-600/5 blur-[120px] pointer-events-none group-hover:bg-red-600/5 dark:group-hover:bg-red-600/10 transition-all duration-700" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-red-600/2 dark:bg-red-600/3 blur-[100px] pointer-events-none" />
 
         <div className="relative z-10 p-8 md:p-10 space-y-8">
           {/* Top: Badge + Title */}
