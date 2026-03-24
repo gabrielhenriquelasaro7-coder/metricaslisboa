@@ -1109,7 +1109,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
               <span className="text-xs font-black text-foreground uppercase tracking-widest">Evaporating Cloud — Diagrama de Conflito</span>
             </div>
 
-            <div className="relative bg-gradient-to-b from-muted/40 to-muted/10 border border-border p-6 md:p-8 rounded-2xl space-y-8">
+            <div className="relative bg-muted/20 dark:bg-muted/40 border border-border p-6 md:p-8 rounded-2xl space-y-8">
               {/* Objective — centered top */}
               <div className="flex justify-center">
                 <div className="bg-blue-600/10 border-2 border-blue-600/30 px-8 py-5 rounded-2xl text-center max-w-lg shadow-lg shadow-blue-600/5 relative">
