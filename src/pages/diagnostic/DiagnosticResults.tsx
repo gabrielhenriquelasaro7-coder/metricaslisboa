@@ -235,12 +235,10 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction
           <div className="h-3 w-full rounded-full bg-muted/50 shadow-inner" />
         ) : (
           <div className="relative h-3 w-full rounded-full flex items-center bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600 shadow-inner" style={{ touchAction: 'none' }}>
-            {effectiveStatus !== 'sem_dados' && (
               <div
                 className={cn("absolute w-5 h-5 rounded-full border-2 border-white z-10 -translate-x-1/2 pointer-events-none transition-all", dotColor)}
                 style={{ left: `${pct}%` }}
               />
-            )}
           </div>
         )}
       </div>
