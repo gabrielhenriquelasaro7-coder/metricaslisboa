@@ -184,7 +184,7 @@ interface TravaSliderCardProps {
 function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction, isSemiManual, isNaoAplica, showMissingAlert }: TravaSliderCardProps) {
   const effectiveStatus = isNaoAplica ? 'nao_aplica' : status;
 
-  const dotColor = isBottleneck || effectiveStatus === 'critico'
+  const dotColor = isBottleneck || effectiveStatus === 'critico' || effectiveStatus === 'sem_dados'
     ? 'bg-red-500 dark:shadow-[0_0_12px_rgba(239,68,68,0.8)]'
     : effectiveStatus === 'na_media'
       ? 'bg-amber-500 dark:shadow-[0_0_12px_rgba(245,158,11,0.8)]'
