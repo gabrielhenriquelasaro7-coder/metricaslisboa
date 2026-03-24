@@ -149,12 +149,12 @@ function getTravaConfigs(model: BusinessModel): TravaConfig[] {
           { key: 'qualification_rate', label: 'Taxa de Qualificação (%)', unit: '%', placeholder: '40', help: '% dos interessados que qualificam' },
         ]},
         // Trava 05 = NULL for PDV
-        { id: 'trava06', label: 'Trava 06 — Venda', description: 'Vendas realizadas', fields: [
-          { key: 'sales', label: 'Vendas Realizadas', unit: 'número', placeholder: '120', help: 'Total de vendas' },
-          { key: 'conversion_rate', label: 'Taxa de Conversão (%)', unit: '%', placeholder: '60', help: '% dos qualificados que compram' },
+        { id: 'trava06', label: 'Trava 06 — Venda', description: 'Conversão final em venda', fields: [
+          { key: 'sales', label: 'Vendas Concretizadas', unit: 'número', placeholder: '120', help: 'Vendas finalizadas, pedidos confirmados, etc.' },
+          { key: 'conversion_rate', label: 'Taxa de Conversão (%)', unit: '%', placeholder: '60', help: '% dos qualificados que efetivaram a compra' },
         ]},
-        { id: 'trava07', label: 'Trava 07 — Recompra', description: 'Retenção e recompra', fields: [
-          { key: 'repurchase_rate', label: 'Taxa de Recompra (%)', unit: '%', placeholder: '35', help: '% de recompra' },
+        { id: 'trava07', label: 'Trava 07 — Recompra', description: 'Retenção, retorno e fidelização', fields: [
+          { key: 'repurchase_rate', label: 'Taxa de Recompra / Retorno (%)', unit: '%', placeholder: '35', help: '% de clientes que retornaram ou compraram novamente' },
           { key: 'frequency', label: 'Frequência Mensal', unit: 'vezes', placeholder: '2.5', help: 'Vezes que o cliente volta por mês' },
         ]},
       ];
