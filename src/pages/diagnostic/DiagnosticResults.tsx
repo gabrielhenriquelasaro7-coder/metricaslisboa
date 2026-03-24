@@ -863,7 +863,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </Card>
 
       {/* ═══ SECTION 3: BOWTIE FUNNEL ═══ */}
-      <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-4 md:p-6 shadow-2xl md:px-8 md:py-8 w-full">
+      <div className="bg-card border border-border rounded-xl p-4 md:p-6 shadow-md dark:shadow-2xl md:px-8 md:py-8 w-full">
         <div className="flex items-center justify-between mb-8 px-2">
           <div className="flex flex-col">
             <h5 className="text-[12px] font-black text-foreground uppercase tracking-widest italic">Fluxo de RECEITA</h5>
