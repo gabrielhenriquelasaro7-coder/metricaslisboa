@@ -113,10 +113,10 @@ function getTravaConfigs(model: BusinessModel): TravaConfig[] {
           { key: 'mql', label: 'MQL (Marketing Qualified Leads)', unit: 'número', placeholder: '88', help: 'Leads qualificados' },
           { key: 'qualification_rate', label: 'Taxa Lead→MQL (%)', unit: '%', placeholder: '25', help: '% dos leads que se qualificam' },
         ]},
-        { id: 'trava05', label: 'Trava 05 — Compromisso', description: 'Reuniões e visitas', fields: [
-          { key: 'meetings_scheduled', label: 'Reuniões Agendadas', unit: 'número', placeholder: '60', help: 'Total de reuniões marcadas' },
-          { key: 'meetings_done', label: 'Reuniões Realizadas', unit: 'número', placeholder: '42', help: 'Total de reuniões feitas' },
-          { key: 'no_show_rate', label: 'Taxa de No-Show (%)', unit: '%', placeholder: '30', help: '% de faltas' },
+        { id: 'trava05', label: 'Trava 05 — Compromisso', description: 'Ações de comprometimento do lead (reunião, envio de dados, visita, etc.)', fields: [
+          { key: 'meetings_scheduled', label: 'Compromissos Agendados / Solicitados', unit: 'número', placeholder: '60', help: 'Reuniões marcadas, formulários detalhados enviados, visitas agendadas, etc.' },
+          { key: 'meetings_done', label: 'Compromissos Realizados / Concluídos', unit: 'número', placeholder: '42', help: 'Reuniões feitas, dados recebidos, visitas realizadas, etc.' },
+          { key: 'no_show_rate', label: 'Taxa de Não-Comparecimento (%)', unit: '%', placeholder: '30', help: '% que não completou o compromisso (no-show, não enviou dados, etc.)' },
         ]},
         { id: 'trava06', label: 'Trava 06 — Decisão', description: 'Fechamento de propostas', fields: [
           { key: 'proposals', label: 'Propostas Enviadas', unit: 'número', placeholder: '35', help: 'Total de propostas' },
