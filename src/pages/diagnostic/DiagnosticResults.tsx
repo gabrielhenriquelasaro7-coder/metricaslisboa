@@ -194,7 +194,7 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction
 
   const tagColor = isNaoAplica ? "text-blue-400 border-blue-400/20" :
     isSemiManual ? "text-amber-500 border-amber-500/20" :
-    isBottleneck || effectiveStatus === 'critico' ? "text-red-500 border-red-500/20" :
+    isBottleneck || effectiveStatus === 'critico' || effectiveStatus === 'sem_dados' ? "text-red-500 border-red-500/20" :
     effectiveStatus === 'bom' ? "text-emerald-500 border-emerald-500/20" :
     effectiveStatus === 'na_media' ? "text-amber-500 border-amber-500/20" : "text-muted-foreground border-border";
 
