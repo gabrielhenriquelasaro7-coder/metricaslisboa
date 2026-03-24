@@ -110,7 +110,8 @@ function getStageColor(status: string, isBottleneck: boolean) {
   switch (status) {
     case 'bom': return { text: 'text-emerald-500', glow: 'rgba(16, 185, 129, 0.2)', bg: 'from-emerald-500/10', border: 'border-emerald-500/20', barColor: 'bg-emerald-500', dotColor: 'bg-emerald-400' };
     case 'na_media': return { text: 'text-amber-500', glow: 'rgba(245, 158, 11, 0.2)', bg: 'from-amber-500/10', border: 'border-amber-500/20', barColor: 'bg-amber-500', dotColor: 'bg-amber-400' };
-    default: return { text: 'text-yellow-500', glow: 'rgba(234, 179, 8, 0.2)', bg: 'from-yellow-500/10', border: 'border-border', barColor: 'bg-yellow-500', dotColor: 'bg-yellow-400' };
+    case 'sem_dados': return { text: 'text-red-500', glow: 'rgba(239, 68, 68, 0.3)', bg: 'from-red-600/15', border: 'border-red-500/30', barColor: 'bg-red-600', dotColor: 'bg-red-500' };
+    default: return { text: 'text-red-500', glow: 'rgba(239, 68, 68, 0.3)', bg: 'from-red-600/15', border: 'border-red-500/30', barColor: 'bg-red-600', dotColor: 'bg-red-500' };
   }
 }
 
@@ -142,7 +143,7 @@ function getDisplayPercent(score: { status: string; valor_informado?: string | n
     case 'critico': return 18;
     case 'na_media': return 48;
     case 'bom': return 82;
-    default: return 50; // sem_dados — center/gray
+    default: return 15; // sem_dados — red zone
   }
 }
 
@@ -183,7 +184,7 @@ interface TravaSliderCardProps {
 function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction, isSemiManual, isNaoAplica, showMissingAlert }: TravaSliderCardProps) {
   const effectiveStatus = isNaoAplica ? 'nao_aplica' : status;
 
-  const dotColor = isBottleneck || effectiveStatus === 'critico'
+  const dotColor = isBottleneck || effectiveStatus === 'critico' || effectiveStatus === 'sem_dados'
     ? 'bg-red-500 dark:shadow-[0_0_12px_rgba(239,68,68,0.8)]'
     : effectiveStatus === 'na_media'
       ? 'bg-amber-500 dark:shadow-[0_0_12px_rgba(245,158,11,0.8)]'
@@ -193,7 +194,7 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction
 
   const tagColor = isNaoAplica ? "text-blue-400 border-blue-400/20" :
     isSemiManual ? "text-amber-500 border-amber-500/20" :
-    isBottleneck || effectiveStatus === 'critico' ? "text-red-500 border-red-500/20" :
+    isBottleneck || effectiveStatus === 'critico' || effectiveStatus === 'sem_dados' ? "text-red-500 border-red-500/20" :
     effectiveStatus === 'bom' ? "text-emerald-500 border-emerald-500/20" :
     effectiveStatus === 'na_media' ? "text-amber-500 border-amber-500/20" : "text-muted-foreground border-border";
 
@@ -234,12 +235,10 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction
           <div className="h-3 w-full rounded-full bg-muted/50 shadow-inner" />
         ) : (
           <div className="relative h-3 w-full rounded-full flex items-center bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600 shadow-inner" style={{ touchAction: 'none' }}>
-            {effectiveStatus !== 'sem_dados' && (
               <div
                 className={cn("absolute w-5 h-5 rounded-full border-2 border-white z-10 -translate-x-1/2 pointer-events-none transition-all", dotColor)}
                 style={{ left: `${pct}%` }}
               />
-            )}
           </div>
         )}
       </div>
