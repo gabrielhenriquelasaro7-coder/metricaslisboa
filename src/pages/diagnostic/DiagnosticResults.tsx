@@ -273,21 +273,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
   const stageScores = ai.stage_scores || [];
   const scoreMap = new Map(stageScores.map(s => [normalizeTravaId(s.trava, s.nome), s]));
-
-  // REGRA OBRIGATÓRIA: Se 2+ travas têm "sem_dados" (excluindo N/A), forçar cegueira
-  const semDadosCount = stageScores.filter(s => {
-    const nId = normalizeTravaId(s.trava, s.nome);
-    const travaKey = `trava${nId}` as keyof typeof project.funnelData;
-    const isNaoAplica = project.funnelData?.[travaKey]?._nao_aplica === true;
-    return s.status === 'sem_dados' && !isNaoAplica;
-  }).length;
-
-  const activeTrava = semDadosCount >= 2 ? '00' : normalizeTravaId(ai.trava_identificada, ai.trava_nome);
-
-  // Debug: log stage_scores normalization
-  console.log('[DiagnosticResults] stage_scores raw:', stageScores.map(s => ({ trava: s.trava, nome: s.nome, normalized: normalizeTravaId(s.trava, s.nome), status: s.status })));
-  console.log('[DiagnosticResults] stage_scores count:', stageScores.length);
-  console.log('[DiagnosticResults] activeTrava:', activeTrava, 'from:', ai.trava_identificada, ai.trava_nome);
+  const activeTrava = normalizeTravaId(ai.trava_identificada, ai.trava_nome);
 
   const handleExportPDF = () => {
     try {
