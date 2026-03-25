@@ -656,7 +656,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         });
         y += 4;
       });
-      } // end if activeTrava !== '00' (LTP + Plano 90 dias in PDF)
+      
 
       // ═══ FOOTER ON ALL PAGES ═══
       const totalPages = doc.getNumberOfPages();
