@@ -529,7 +529,6 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       }
 
       // ═══ LTP ANALYSIS ═══
-      if (activeTrava !== '00') {
       y += 4;
 
       // CRT
@@ -657,7 +656,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         });
         y += 4;
       });
-      } // end if activeTrava !== '00' (LTP + Plano 90 dias in PDF)
+      
 
       // ═══ FOOTER ON ALL PAGES ═══
       const totalPages = doc.getNumberOfPages();
@@ -1030,8 +1029,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         </div>
       </Card>
 
-      {activeTrava !== '00' && (<>
       {/* ═══ SECTION 5: LTP — LOGICAL THINKING PROCESS ═══ */}
+      {/* CRT + Core Problem */}
       {/* CRT + Core Problem */}
       <Card className="p-0 bg-card rounded-[2.5rem] overflow-hidden">
         <div className="bg-gradient-to-r from-red-600/10 via-transparent to-transparent p-6 pb-4 border-b border-border">
@@ -1283,7 +1282,6 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           ))}
         </div>
       </Card>
-      </>)}
     </div>
   );
 }
