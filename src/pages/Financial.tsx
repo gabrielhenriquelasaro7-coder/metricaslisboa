@@ -154,8 +154,7 @@ export default function Financial() {
                      crmStatus?.sync?.status === 'completed' ? 'synced' : 
                      crmStatus?.sync?.status === 'failed' ? 'error' : 'pending';
 
-  const { isTech, isGerente, isCoordenador, isMaster } = useCargo();
-  // Authorized: any authenticated user with a valid cargo (not just investidor)
+  // Authorized: any authenticated user (not just investidor or specific email)
   const isAuthorized = !!user;
   const isBusinessModelAllowed = businessModel && ALLOWED_BUSINESS_MODELS.includes(businessModel);
   const businessModelInfo = businessModel ? BUSINESS_MODEL_LABELS[businessModel] : null;
