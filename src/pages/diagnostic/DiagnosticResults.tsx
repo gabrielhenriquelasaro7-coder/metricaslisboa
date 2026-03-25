@@ -529,7 +529,6 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       }
 
       // ═══ LTP ANALYSIS ═══
-      if (activeTrava !== '00') {
       y += 4;
 
       // CRT
