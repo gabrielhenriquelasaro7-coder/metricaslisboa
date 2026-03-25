@@ -1283,6 +1283,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           ))}
         </div>
       </Card>
+      </>)}
     </div>
   );
 }
