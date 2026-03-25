@@ -393,6 +393,62 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
     }
   };
 
+  const normalizeTravaId = (trava?: string, nome?: string): string => {
+    const rawTrava = (trava || '').toString();
+    const digitMatch = rawTrava.match(/(\d{1,2})/);
+
+    if (digitMatch) {
+      const num = parseInt(digitMatch[1], 10);
+      if (!Number.isNaN(num) && num >= 0 && num <= 7) {
+        return String(num).padStart(2, '0');
+      }
+    }
+
+    const merged = `${rawTrava} ${nome || ''}`.toLowerCase();
+    if (merged.includes('cegueira')) return '00';
+    if (merged.includes('retenc') || merged.includes('churn') || merged.includes('recompra')) return '07';
+    if (merged.includes('decis') || merged.includes('fechamento') || merged.includes('proposta')) return '06';
+    if (merged.includes('compromisso') || merged.includes('reuniao') || merged.includes('checkout')) return '05';
+    if (merged.includes('qualifica') || merged.includes('mql')) return '04';
+    if (merged.includes('lead') || merged.includes('cpl') || merged.includes('interesse')) return '03';
+    if (merged.includes('ctr') || merged.includes('clique') || merged.includes('cpc') || merged.includes('atencao')) return '02';
+    if (merged.includes('impress') || merged.includes('cpm') || merged.includes('exposicao')) return '01';
+    return '00';
+  };
+
+  const enforceBlindnessRule = (analysis: any): any => {
+    const stageScores = Array.isArray(analysis?.stage_scores) ? analysis.stage_scores : [];
+
+    const missingStages = stageScores
+      .filter((score: any) => score?.status === 'sem_dados')
+      .map((score: any) => normalizeTravaId(score?.trava, score?.nome))
+      .filter((travaId: string) => {
+        if (travaId === '00') return false;
+
+        // No modelo PDV, a Trava 05 não se aplica por definição
+        if (identification.businessModel === 'pdv' && travaId === '05') return false;
+
+        const travaKey = `trava${travaId}` as keyof DiagnosticFunnelData;
+        const travaData = funnelData?.[travaKey] as FunnelTravaData | undefined;
+        return travaData?._nao_aplica !== true;
+      });
+
+    if (missingStages.length < 2) return analysis;
+
+    const missingUnique = [...new Set(missingStages)].sort();
+    const missingLabel = missingUnique.map(t => `Trava ${t}`).join(', ');
+
+    return {
+      ...analysis,
+      trava_identificada: 'cegueira',
+      trava_nome: 'Cegueira de Dados',
+      confianca: 'alta',
+      razao_core_problem: `Dados insuficientes para identificar a restrição ativa com confiança. Estágios sem dados: ${missingLabel}.`,
+      injecao_recomendada: 'Preencher os estágios sem dados do funil (ou marcar como Não se Aplica) e reexecutar o diagnóstico para identificar a trava real do sistema.',
+      sintese: `A análise foi classificada como Cegueira de Dados, pois há dois ou mais estágios sem métricas preenchidas no funil.\n\nSem cobertura mínima de dados, qualquer identificação de gargalo ativo ficaria tecnicamente frágil e sujeita a erro de diagnóstico.\n\nPara avançar com precisão, complete os dados dos estágios pendentes (ou marque corretamente os estágios não aplicáveis) e rode a análise novamente.`,
+    };
+  };
+
   const runAIAnalysis = async () => {
     setIsAnalyzing(true);
     try {
@@ -411,6 +467,8 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      const normalizedAnalysis = enforceBlindnessRule(data);
+
       const finalProject: DiagnosticProject = {
         ...project,
         name: identification.companyName,
@@ -420,7 +478,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
         identification,
         businessData: business,
         funnelData,
-        aiAnalysis: data,
+        aiAnalysis: normalizedAnalysis,
         economics: {
           ...project.economics,
           averageTicket: business.averageTicket,
@@ -437,7 +495,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
       };
 
       toast.success('Análise concluída!');
-      onSave(finalProject, data);
+      onSave(finalProject, normalizedAnalysis);
     } catch (err: any) {
       console.error('AI Analysis error:', err);
       toast.error(err.message || 'Erro ao executar análise. Tente novamente.');
