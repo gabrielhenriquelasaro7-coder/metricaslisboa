@@ -88,16 +88,17 @@ export default function DiagnosticTOC() {
     } catch (error: any) {
       console.error('Erro ao buscar relatórios:', error);
 
-      const localData = localStorage.getItem(PROJECTS_STORAGE_KEY);
-      if (localData) {
-        const localProjects: DiagnosticProject[] = JSON.parse(localData);
-        setProjects(localProjects);
-      }
-
       if (error?.code === '42P01') {
+        const localData = localStorage.getItem(PROJECTS_STORAGE_KEY);
+        if (localData) {
+          const localProjects: DiagnosticProject[] = JSON.parse(localData);
+          setProjects(localProjects);
+        }
         toast.info('Modo Local Ativo: Tabela não encontrada. Dados sendo salvos localmente.', {
           duration: 4000
         });
+      } else {
+        toast.error('Erro ao carregar diagnósticos na nuvem. Tente novamente.');
       }
     } finally {
       setIsLoading(false);
@@ -109,18 +110,7 @@ export default function DiagnosticTOC() {
   }, [selectedMonth, selectedYear]);
 
   const saveProject = async (p: DiagnosticProject) => {
-    // 1. Sempre salvar no LocalStorage primeiro como backup
-    const localData = localStorage.getItem(PROJECTS_STORAGE_KEY);
-    let localProjects: DiagnosticProject[] = localData ? JSON.parse(localData) : [];
-    const index = localProjects.findIndex(lp => lp.id === p.id);
-    if (index >= 0) {
-      localProjects[index] = p;
-    } else {
-      localProjects.push(p);
-    }
-    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(localProjects));
-
-    // 2. Salvar no banco
+    // Salvar no banco como fonte primária de verdade
     try {
       const systemProjectId = (p as any).systemProjectId || (p as any).projectId || p.id;
 
@@ -138,13 +128,23 @@ export default function DiagnosticTOC() {
 
       if (error) throw error;
       toast.success('Diagnóstico salvo na nuvem!');
+      localStorage.removeItem(PROJECTS_STORAGE_KEY);
       fetchReports();
     } catch (error: any) {
       console.error('Erro ao salvar:', error);
       if (error?.code === '42P01') {
+        const localData = localStorage.getItem(PROJECTS_STORAGE_KEY);
+        const localProjects: DiagnosticProject[] = localData ? JSON.parse(localData) : [];
+        const index = localProjects.findIndex(lp => lp.id === p.id);
+        if (index >= 0) {
+          localProjects[index] = p;
+        } else {
+          localProjects.push(p);
+        }
+        localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(localProjects));
         toast.success('Diagnóstico salvo localmente!');
       } else {
-        toast.error('Erro ao sincronizar com a nuvem, mas salvo localmente.');
+        toast.error('Erro ao salvar na nuvem. Verifique sua conexão e tente novamente.');
       }
       fetchReports();
     }
