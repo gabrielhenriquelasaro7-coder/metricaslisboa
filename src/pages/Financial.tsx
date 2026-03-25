@@ -154,9 +154,9 @@ export default function Financial() {
                      crmStatus?.sync?.status === 'completed' ? 'synced' : 
                      crmStatus?.sync?.status === 'failed' ? 'error' : 'pending';
 
-  const ALLOWED_EMAIL = 'gabrielhenriquelasaro7@gmail.com';
-  // Authorized: admin email OR investidor
-  const isAuthorized = user?.email === ALLOWED_EMAIL || isInvestidor;
+  const { isTech, isGerente, isCoordenador, isMaster } = useCargo();
+  // Authorized: any authenticated user with a valid cargo (not just investidor)
+  const isAuthorized = !!user;
   const isBusinessModelAllowed = businessModel && ALLOWED_BUSINESS_MODELS.includes(businessModel);
   const businessModelInfo = businessModel ? BUSINESS_MODEL_LABELS[businessModel] : null;
 
