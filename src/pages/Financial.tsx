@@ -103,7 +103,7 @@ export default function Financial() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { projects, loading: projectsLoading } = useProjects();
-  const { isInvestidor, loading: cargoLoading } = useCargo();
+  const { isInvestidor, isTech, isGerente, isCoordenador, isMaster, loading: cargoLoading } = useCargo();
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId) || null;
