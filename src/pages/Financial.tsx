@@ -103,7 +103,7 @@ export default function Financial() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { projects, loading: projectsLoading } = useProjects();
-  const { isInvestidor, loading: cargoLoading } = useCargo();
+  const { isInvestidor, isTech, isGerente, isCoordenador, isMaster, loading: cargoLoading } = useCargo();
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId) || null;
@@ -154,9 +154,8 @@ export default function Financial() {
                      crmStatus?.sync?.status === 'completed' ? 'synced' : 
                      crmStatus?.sync?.status === 'failed' ? 'error' : 'pending';
 
-  const ALLOWED_EMAIL = 'gabrielhenriquelasaro7@gmail.com';
-  // Authorized: admin email OR investidor
-  const isAuthorized = user?.email === ALLOWED_EMAIL || isInvestidor;
+  // Authorized: any authenticated user (not just investidor or specific email)
+  const isAuthorized = !!user;
   const isBusinessModelAllowed = businessModel && ALLOWED_BUSINESS_MODELS.includes(businessModel);
   const businessModelInfo = businessModel ? BUSINESS_MODEL_LABELS[businessModel] : null;
 
