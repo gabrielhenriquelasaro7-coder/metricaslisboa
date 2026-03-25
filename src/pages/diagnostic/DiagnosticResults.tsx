@@ -1030,8 +1030,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         </div>
       </Card>
 
-      {activeTrava !== '00' && (<>
       {/* ═══ SECTION 5: LTP — LOGICAL THINKING PROCESS ═══ */}
+      {/* CRT + Core Problem */}
       {/* CRT + Core Problem */}
       <Card className="p-0 bg-card rounded-[2.5rem] overflow-hidden">
         <div className="bg-gradient-to-r from-red-600/10 via-transparent to-transparent p-6 pb-4 border-b border-border">
