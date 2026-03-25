@@ -446,6 +446,79 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
       razao_core_problem: `Dados insuficientes para identificar a restrição ativa com confiança. Estágios sem dados: ${missingLabel}.`,
       injecao_recomendada: 'Preencher os estágios sem dados do funil (ou marcar como Não se Aplica) e reexecutar o diagnóstico para identificar a trava real do sistema.',
       sintese: `A análise foi classificada como Cegueira de Dados, pois há dois ou mais estágios sem métricas preenchidas no funil.\n\nSem cobertura mínima de dados, qualquer identificação de gargalo ativo ficaria tecnicamente frágil e sujeita a erro de diagnóstico.\n\nPara avançar com precisão, complete os dados dos estágios pendentes (ou marque corretamente os estágios não aplicáveis) e rode a análise novamente.`,
+      udes: [
+        'Impossibilidade de identificar a restrição ativa do sistema com confiança',
+        'Risco de decisões estratégicas baseadas em dados incompletos',
+        'Falta de visibilidade sobre o desempenho real do funil de vendas',
+        `Estágios sem métricas: ${missingLabel}`,
+      ],
+      ltp_analysis: {
+        crt_nodes: [
+          'A empresa não possui métricas preenchidas em dois ou mais estágios do funil',
+          'Sem dados suficientes, não é possível calcular taxas de conversão entre etapas',
+          'A ausência de métricas impede a comparação com benchmarks do segmento',
+          'Sem comparação com benchmarks, não há como identificar onde o funil está travado',
+          'A restrição ativa do sistema permanece invisível — diagnóstico em estado de cegueira',
+        ],
+        core_problem: 'A empresa opera sem visibilidade suficiente sobre seu funil de vendas, impossibilitando a identificação da restrição ativa e a tomada de decisões estratégicas baseadas em dados.',
+        evaporating_cloud: {
+          objetivo: 'Identificar e resolver a restrição ativa do funil para crescer com previsibilidade',
+          necessidade_a: 'Ter dados completos e confiáveis de todas as etapas do funil para fazer um diagnóstico preciso',
+          necessidade_b: 'Agir rapidamente para não perder oportunidades de mercado e receita',
+          acao_a: 'Parar e dedicar tempo para instrumentar, coletar e validar métricas de cada etapa do funil antes de qualquer decisão',
+          acao_b: 'Tomar decisões estratégicas imediatas baseadas na intuição e experiência, sem esperar dados completos',
+          pressuposto_invalido: 'Acredita-se que instrumentar o funil é um processo longo e complexo que impede ações imediatas. Na realidade, as métricas essenciais de cada trava podem ser coletadas em 1-2 semanas com ferramentas já disponíveis (CRM, Google Analytics, plataformas de ads), permitindo agir com dados confiáveis rapidamente.',
+          injecao: 'Implementar um plano de metrificação rápida (sprint de dados) focado nos estágios críticos sem dados, utilizando as ferramentas já existentes na operação, para ter visibilidade mínima em até 2 semanas e rodar o diagnóstico novamente.',
+        },
+        frt_effects: [
+          'Todos os estágios do funil passam a ter métricas mensuráveis e atualizadas',
+          'O diagnóstico TOC pode ser executado com confiança, identificando a restrição real',
+          'Decisões estratégicas passam a ser baseadas em dados, reduzindo desperdício de budget',
+          'A equipe ganha clareza sobre onde focar esforços para maximizar resultado',
+        ],
+        negative_branches: [
+          'Risco de resistência da equipe ao processo de coleta de dados se não houver comunicação clara do objetivo',
+          'Possibilidade de dados iniciais serem imprecisos se as ferramentas de tracking não estiverem configuradas corretamente',
+          'Tempo investido na metrificação pode gerar ansiedade por resultados imediatos na liderança',
+        ],
+        prerequisite_tree: [
+          'Obstáculo: Ferramentas de tracking podem não estar configuradas → OI: Auditar e configurar Google Analytics, pixels e CRM em até 5 dias',
+          'Obstáculo: Equipe pode não saber quais métricas coletar → OI: Definir checklist de métricas prioritárias por trava do funil',
+          'Obstáculo: Dados históricos podem não existir → OI: Iniciar coleta prospectiva imediata e usar estimativas conservadoras para o período anterior',
+          `Obstáculo: Estágios sem dados (${missingLabel}) → OI: Preencher as métricas faltantes no diagnóstico e reexecutar a análise`,
+        ],
+      },
+      plano_90_dias: {
+        mes_1: {
+          titulo: 'Sprint de Metrificação',
+          acoes: [
+            'Auditar todas as ferramentas de tracking (GA, pixels, CRM, plataformas de ads) e corrigir configurações',
+            'Definir as métricas-chave de cada trava do funil e criar dashboard de acompanhamento',
+            'Configurar coleta automatizada de dados para os estágios sem métricas',
+            'Treinar equipe no preenchimento e monitoramento das métricas definidas',
+            'Ao final do mês, reexecutar o diagnóstico TOC com dados completos',
+          ],
+        },
+        mes_2: {
+          titulo: 'Diagnóstico e Ação na Restrição',
+          acoes: [
+            'Com dados completos, rodar novo diagnóstico TOC para identificar a restrição real',
+            'Desenvolver plano de ação específico para a trava identificada',
+            'Implementar as primeiras ações corretivas na restrição ativa',
+            'Monitorar indicadores semanalmente para validar impacto das ações',
+          ],
+        },
+        mes_3: {
+          titulo: 'Otimização e Escala',
+          acoes: [
+            'Avaliar resultados das ações do mês 2 e ajustar estratégia',
+            'Expandir melhorias para estágios adjacentes do funil',
+            'Consolidar rotina de monitoramento contínuo de métricas',
+            'Preparar próximo ciclo de diagnóstico para melhoria contínua',
+          ],
+        },
+      },
+      metricas_foco: missingUnique.map(t => `Métricas da Trava ${t}`),
     };
   };
 
