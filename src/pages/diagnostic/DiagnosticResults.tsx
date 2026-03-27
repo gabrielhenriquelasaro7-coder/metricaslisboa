@@ -278,12 +278,19 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
   const handleExportPDF = () => {
     try {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const w = doc.internal.pageSize.getWidth();
-      const h = doc.internal.pageSize.getHeight();
-      const margin = 16;
-      const contentW = w - margin * 2;
-      let y = 0;
+      const pageW = doc.internal.pageSize.getWidth();   // 210
+      const pageH = doc.internal.pageSize.getHeight();  // 297
 
+      // ── Strict A4 margins ──
+      const mTop = 20;
+      const mBottom = 20;
+      const mLeft = 15;
+      const mRight = 15;
+      const contentW = pageW - mLeft - mRight; // 180mm
+      const usableH = pageH - mBottom;         // 277mm (bottom limit)
+      let y = mTop;
+
+      // ── Colors ──
       const RED = { r: 220, g: 38, b: 38 };
       const RED_DARK = { r: 153, g: 27, b: 27 };
       const RED_LIGHT = { r: 254, g: 242, b: 242 };
@@ -295,6 +302,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       const AMBER = { r: 245, g: 158, b: 11 };
       const BLUE = { r: 59, g: 130, b: 246 };
 
+      // ── Text sanitizer ──
       const s = (text: string): string => {
         return text
           .normalize('NFD')
@@ -306,139 +314,35 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           .trim();
       };
 
-      const addFooter = () => {
-        doc.setDrawColor(220, 220, 220);
-        doc.line(margin, h - 10, w - margin, h - 10);
-        doc.setFontSize(6.5); doc.setTextColor(160, 160, 160); doc.setFont('helvetica', 'normal');
-        doc.text(s(`Diagnostico TOC  |  ${project.name}  |  ${new Date().toLocaleDateString('pt-BR')}`), margin, h - 6);
-      };
-
+      // ── Mini header for continuation pages ──
       const addMiniHeader = () => {
         doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
-        doc.rect(0, 0, w, 10, 'F');
+        doc.rect(0, 0, pageW, 12, 'F');
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
-        doc.text(s(`DIAGNOSTICO TOC  |  ${project.name}`).toUpperCase(), margin, 6.5);
+        doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+        doc.text(s(`DIAGNOSTICO TOC  |  ${project.name}`).toUpperCase(), mLeft, 8);
         doc.setFillColor(RED.r, RED.g, RED.b);
-        doc.rect(margin, 9.5, 25, 1, 'F');
-        y = 16;
+        doc.rect(mLeft, 11.5, 25, 0.8, 'F');
+        y = mTop;
       };
 
-      const safeBottom = 14; // margem de segurança inferior (footer + respiro)
-      const checkPage = (need: number = 12) => {
-        if (y > h - safeBottom - need) {
-          doc.addPage();
-          addMiniHeader();
-        }
-      };
+      // ── Safe page break ──
+      const needsNewPage = (need: number): boolean => y + need > usableH;
+      const newPage = () => { doc.addPage(); addMiniHeader(); };
+      const checkPage = (need: number) => { if (needsNewPage(need)) newPage(); };
 
+      // ── Section header bar ──
       const sectionHeader = (title: string, color = RED) => {
-        checkPage(14);
+        checkPage(18);
         doc.setFillColor(color.r, color.g, color.b);
-        doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, 'F');
+        doc.roundedRect(mLeft, y, contentW, 8, 1.5, 1.5, 'F');
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-        doc.text(s(title).toUpperCase(), margin + 4, y + 5.5);
-        y += 11;
+        doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
+        doc.text(s(title).toUpperCase(), mLeft + 5, y + 5.5);
+        y += 12;
       };
 
-      // ═══ PAGE 1: COVER ═══
-      doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
-      doc.rect(0, 0, w, 55, 'F');
-      doc.setFillColor(RED.r, RED.g, RED.b);
-      doc.rect(margin, 48, 30, 2, 'F');
-
-      doc.setTextColor(120, 120, 120);
-      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-      doc.text('RELATORIO DE DIAGNOSTICO', margin, 16);
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(22); doc.setFont('helvetica', 'bold');
-      doc.text('Teoria das Restricoes', margin, 30);
-      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      doc.text(s(`${project.name}  |  ${project.segment || '--'}`), margin, 40);
-      doc.setFontSize(7); doc.setTextColor(160, 160, 160);
-      doc.text(new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }), w - margin, 40, { align: 'right' });
-
-      // Info cards
-      y = 62;
-      const cardW = (contentW - 6) / 3;
-      [
-        { label: 'EMPRESA', value: project.name || '--' },
-        { label: 'SEGMENTO', value: project.segment || '--' },
-        { label: 'MODELO', value: project.identification?.businessModel || '--' },
-      ].forEach((info, i) => {
-        const x = margin + i * (cardW + 3);
-        doc.setFillColor(GRAY_LIGHT.r, GRAY_LIGHT.g, GRAY_LIGHT.b);
-        doc.roundedRect(x, y, cardW, 14, 1.5, 1.5, 'F');
-        doc.setFontSize(6); doc.setFont('helvetica', 'bold'); doc.setTextColor(GRAY.r, GRAY.g, GRAY.b);
-        doc.text(info.label, x + 3, y + 5);
-        doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(BLACK.r, BLACK.g, BLACK.b);
-        doc.text(s(info.value).slice(0, 24), x + 3, y + 11);
-      });
-
-      // Restricao ativa
-      y += 22;
-      doc.setFillColor(RED.r, RED.g, RED.b);
-      doc.roundedRect(margin, y, contentW, 26, 2, 2, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(6); doc.setFont('helvetica', 'bold');
-      doc.text('RESTRICAO ATIVA IDENTIFICADA', margin + 5, y + 6);
-      doc.setFontSize(18); doc.setFont('helvetica', 'bold');
-      doc.text(s(TRAVA_NAMES[activeTrava] || ai.trava_nome).toUpperCase(), margin + 5, y + 17);
-      doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-      doc.text(s(`Trava ${activeTrava}  |  Confianca: ${(ai.confianca || 'N/A').toUpperCase()}`), margin + 5, y + 23);
-
-      // Core Problem
-      y += 32;
-      doc.setTextColor(RED.r, RED.g, RED.b);
-      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-      doc.text('CORE PROBLEM', margin, y);
-      y += 5;
-      doc.setTextColor(BLACK.r, BLACK.g, BLACK.b);
-      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      const cpLines = doc.splitTextToSize(s(ai.razao_core_problem), contentW);
-      doc.text(cpLines, margin, y);
-      y += cpLines.length * 4.2 + 4;
-
-      // Injecao recomendada
-      checkPage(22);
-      const injLines = doc.splitTextToSize(s(ai.injecao_recomendada), contentW - 8);
-      const injH = injLines.length * 4 + 12;
-      doc.setFillColor(240, 253, 244);
-      doc.roundedRect(margin, y, contentW, injH, 1.5, 1.5, 'F');
-      doc.setDrawColor(GREEN.r, GREEN.g, GREEN.b); doc.setLineWidth(0.4);
-      doc.roundedRect(margin, y, contentW, injH, 1.5, 1.5, 'S');
-      doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2);
-      doc.setTextColor(GREEN.r, GREEN.g, GREEN.b);
-      doc.setFontSize(6); doc.setFont('helvetica', 'bold');
-      doc.text('INJECAO RECOMENDADA', margin + 4, y + 5);
-      doc.setTextColor(30, 30, 30);
-      doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
-      doc.text(injLines, margin + 4, y + 10);
-      y += injH + 4;
-
-      // Sintese executiva
-      checkPage(20);
-      doc.setDrawColor(230, 230, 230);
-      doc.line(margin, y, w - margin, y);
-      y += 4;
-      doc.setTextColor(RED.r, RED.g, RED.b);
-      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-      doc.text('SINTESE EXECUTIVA', margin, y);
-      y += 5;
-      doc.setTextColor(60, 60, 60); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
-      const synLines = doc.splitTextToSize(s(ai.sintese), contentW);
-      for (const line of synLines) {
-        checkPage(6);
-        doc.text(line, margin, y);
-        y += 4;
-      }
-
-      // ═══ PAINEL DE TRAVAS (2-column layout replicating UI) ═══
-      y += 3;
-      sectionHeader('Painel de Travas', RED);
-
-      const TRAVA_ORDER = ['07', '06', '05', '04', '03', '02', '01'];
+      // ── Color helper ──
       const statusColorMap = (st: string, isGarg: boolean) => {
         if (isGarg || st === 'critico') return RED;
         if (st === 'bom') return GREEN;
@@ -446,19 +350,121 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         return GRAY;
       };
 
+      // ══════════════════════════════════════
+      // PAGE 1: COVER
+      // ══════════════════════════════════════
+      doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
+      doc.rect(0, 0, pageW, 55, 'F');
+      doc.setFillColor(RED.r, RED.g, RED.b);
+      doc.rect(mLeft, 48, 30, 2, 'F');
+
+      doc.setTextColor(120, 120, 120);
+      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+      doc.text('RELATORIO DE DIAGNOSTICO', mLeft, 16);
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22); doc.setFont('helvetica', 'bold');
+      doc.text('Teoria das Restricoes', mLeft, 30);
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      doc.text(s(`${project.name}  |  ${project.segment || '--'}`), mLeft, 40);
+      doc.setFontSize(7); doc.setTextColor(160, 160, 160);
+      doc.text(new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }), pageW - mRight, 40, { align: 'right' });
+
+      // Info cards
+      y = 64;
+      const infoCardW = (contentW - 6) / 3;
+      [
+        { label: 'EMPRESA', value: project.name || '--' },
+        { label: 'SEGMENTO', value: project.segment || '--' },
+        { label: 'MODELO', value: project.identification?.businessModel || '--' },
+      ].forEach((info, i) => {
+        const x = mLeft + i * (infoCardW + 3);
+        doc.setFillColor(GRAY_LIGHT.r, GRAY_LIGHT.g, GRAY_LIGHT.b);
+        doc.roundedRect(x, y, infoCardW, 14, 1.5, 1.5, 'F');
+        doc.setFontSize(6); doc.setFont('helvetica', 'bold'); doc.setTextColor(GRAY.r, GRAY.g, GRAY.b);
+        doc.text(info.label, x + 4, y + 5);
+        doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(BLACK.r, BLACK.g, BLACK.b);
+        doc.text(s(info.value).slice(0, 24), x + 4, y + 11);
+      });
+
+      // Restricao ativa card
+      y += 22;
+      doc.setFillColor(RED.r, RED.g, RED.b);
+      doc.roundedRect(mLeft, y, contentW, 26, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(6); doc.setFont('helvetica', 'bold');
+      doc.text('RESTRICAO ATIVA IDENTIFICADA', mLeft + 5, y + 6);
+      doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+      doc.text(s(TRAVA_NAMES[activeTrava] || ai.trava_nome).toUpperCase(), mLeft + 5, y + 17);
+      doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+      doc.text(s(`Trava ${activeTrava}  |  Confianca: ${(ai.confianca || 'N/A').toUpperCase()}`), mLeft + 5, y + 23);
+
+      // Core Problem
+      y += 32;
+      doc.setTextColor(RED.r, RED.g, RED.b);
+      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+      doc.text('CORE PROBLEM', mLeft, y);
+      y += 5;
+      doc.setTextColor(BLACK.r, BLACK.g, BLACK.b);
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      const cpLines = doc.splitTextToSize(s(ai.razao_core_problem), contentW);
+      doc.text(cpLines, mLeft, y);
+      y += cpLines.length * 4.5 + 4;
+
+      // Injecao recomendada
+      checkPage(20);
+      const injLines = doc.splitTextToSize(s(ai.injecao_recomendada), contentW - 10);
+      const injH = injLines.length * 4 + 12;
+      doc.setFillColor(240, 253, 244);
+      doc.roundedRect(mLeft, y, contentW, injH, 1.5, 1.5, 'F');
+      doc.setDrawColor(GREEN.r, GREEN.g, GREEN.b); doc.setLineWidth(0.4);
+      doc.roundedRect(mLeft, y, contentW, injH, 1.5, 1.5, 'S');
+      doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2);
+      doc.setTextColor(GREEN.r, GREEN.g, GREEN.b);
+      doc.setFontSize(6); doc.setFont('helvetica', 'bold');
+      doc.text('INJECAO RECOMENDADA', mLeft + 5, y + 5);
+      doc.setTextColor(30, 30, 30);
+      doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
+      doc.text(injLines, mLeft + 5, y + 10);
+      y += injH + 5;
+
+      // Sintese executiva
+      checkPage(15);
+      doc.setDrawColor(220, 220, 220);
+      doc.line(mLeft, y, pageW - mRight, y);
+      y += 5;
+      doc.setTextColor(RED.r, RED.g, RED.b);
+      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+      doc.text('SINTESE EXECUTIVA', mLeft, y);
+      y += 5;
+      doc.setTextColor(60, 60, 60); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
+      const synLines = doc.splitTextToSize(s(ai.sintese), contentW);
+      for (const line of synLines) {
+        checkPage(5);
+        doc.text(line, mLeft, y);
+        y += 4;
+      }
+      y += 3;
+
+      // ══════════════════════════════════════
+      // PAINEL DE TRAVAS — 2-column cards
+      // ══════════════════════════════════════
+      // Always start on a new page for clean layout
+      newPage();
+      sectionHeader('Painel de Travas', RED);
+
       const colLeft = ['07', '06', '05'];
       const colRight = ['04', '03', '02'];
-      const colHalf = (contentW - 5) / 2;
+      const colHalf = (contentW - 6) / 2;
       const cardH = 22;
       const cardGap = 3;
 
       // Column headers
       doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
-      doc.roundedRect(margin, y, colHalf, 7, 1.2, 1.2, 'F');
-      doc.roundedRect(margin + colHalf + 5, y, colHalf, 7, 1.2, 1.2, 'F');
+      doc.roundedRect(mLeft, y, colHalf, 7, 1.2, 1.2, 'F');
+      doc.roundedRect(mLeft + colHalf + 6, y, colHalf, 7, 1.2, 1.2, 'F');
       doc.setTextColor(255, 255, 255); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-      doc.text('VENDAS / CS', margin + 4, y + 5);
-      doc.text('MARKETING', margin + colHalf + 9, y + 5);
+      doc.text('VENDAS / CS', mLeft + 4, y + 5);
+      doc.text('MARKETING', mLeft + colHalf + 10, y + 5);
       y += 10;
 
       const drawTravaCard = (tId: string, x: number, cardY: number, cW: number) => {
@@ -470,57 +476,52 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         const pctVal = getDisplayPercent(score, isGarg);
         const statusLbl = isGarg ? 'GARGALO' : (STATUS_LABELS[score.status] || 'SEM DADOS');
 
-        // Card background
-        doc.setFillColor(WHITE.r, WHITE.g, WHITE.b);
+        // Card bg + border
+        if (isGarg) {
+          doc.setFillColor(RED_LIGHT.r, RED_LIGHT.g, RED_LIGHT.b);
+        } else {
+          doc.setFillColor(WHITE.r, WHITE.g, WHITE.b);
+        }
         doc.roundedRect(x, cardY, cW, cardH, 2, 2, 'F');
-
-        // Border
         if (isGarg) {
           doc.setDrawColor(RED.r, RED.g, RED.b); doc.setLineWidth(0.6);
         } else {
-          doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
+          doc.setDrawColor(210, 210, 210); doc.setLineWidth(0.3);
         }
         doc.roundedRect(x, cardY, cW, cardH, 2, 2, 'S');
         doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2);
 
-        // If gargalo, light red background
-        if (isGarg) {
-          doc.setFillColor(RED_LIGHT.r, RED_LIGHT.g, RED_LIGHT.b);
-          doc.roundedRect(x + 0.3, cardY + 0.3, cW - 0.6, cardH - 0.6, 1.8, 1.8, 'F');
-        }
-
-        // Row 1: "TRAVA XX" label + status badge
-        doc.setFontSize(5.5); doc.setFont('helvetica', 'bold');
+        // Label: "TRAVA XX"
+        doc.setFontSize(6); doc.setFont('helvetica', 'bold');
         doc.setTextColor(GRAY.r, GRAY.g, GRAY.b);
         doc.text(`TRAVA ${nId}`, x + 4, cardY + 5);
 
+        // Status badge
         doc.setTextColor(stColor.r, stColor.g, stColor.b);
-        doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7); doc.setFont('helvetica', 'bold');
         doc.text(statusLbl, x + cW - 4, cardY + 5, { align: 'right' });
 
-        // Row 2: Trava name (bold, larger)
+        // Trava name
         doc.setFontSize(10); doc.setFont('helvetica', 'bold');
         doc.setTextColor(BLACK.r, BLACK.g, BLACK.b);
         doc.text(s(TRAVA_NAMES[nId] || score.nome), x + 4, cardY + 12);
 
-        // Row 3: Gradient progress bar
+        // Gradient progress bar (red → amber → green)
         const barX = x + 4;
         const barW = cW - 8;
-        const barY = cardY + 15.5;
-        const barH = 3;
-
-        // 3-color gradient bar
+        const barY2 = cardY + 15.5;
+        const barH2 = 3;
         const seg = barW / 3;
         doc.setFillColor(220, 38, 38);
-        doc.roundedRect(barX, barY, seg + 0.5, barH, 1, 1, 'F');
+        doc.roundedRect(barX, barY2, seg + 0.5, barH2, 1, 1, 'F');
         doc.setFillColor(245, 158, 11);
-        doc.rect(barX + seg, barY, seg, barH, 'F');
+        doc.rect(barX + seg, barY2, seg, barH2, 'F');
         doc.setFillColor(16, 185, 129);
-        doc.roundedRect(barX + seg * 2 - 0.5, barY, seg + 0.5, barH, 1, 1, 'F');
+        doc.roundedRect(barX + seg * 2 - 0.5, barY2, seg + 0.5, barH2, 1, 1, 'F');
 
-        // Dot indicator with white ring
+        // Dot indicator
         const dotX = barX + barW * (pctVal / 100);
-        const dotCY = barY + barH / 2;
+        const dotCY = barY2 + barH2 / 2;
         doc.setFillColor(255, 255, 255);
         doc.circle(dotX, dotCY, 2.8, 'F');
         doc.setFillColor(stColor.r, stColor.g, stColor.b);
@@ -529,38 +530,40 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
       const startY = y;
       colLeft.forEach((tId, idx) => {
-        drawTravaCard(tId, margin, startY + idx * (cardH + cardGap), colHalf);
+        drawTravaCard(tId, mLeft, startY + idx * (cardH + cardGap), colHalf);
       });
       colRight.forEach((tId, idx) => {
-        drawTravaCard(tId, margin + colHalf + 5, startY + idx * (cardH + cardGap), colHalf);
+        drawTravaCard(tId, mLeft + colHalf + 6, startY + idx * (cardH + cardGap), colHalf);
       });
-
       y = startY + 3 * (cardH + cardGap) + 2;
 
-      // Separator + Topo de Funil (01) — full width
-      checkPage(30);
-      doc.setDrawColor(220, 220, 220);
-      doc.line(margin, y, w - margin, y);
+      // Separator + Topo de Funil (01)
+      doc.setDrawColor(210, 210, 210);
+      doc.line(mLeft, y, pageW - mRight, y);
       y += 4;
-      doc.setTextColor(GRAY.r, GRAY.g, GRAY.b); doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
-      doc.text('TOPO DE FUNIL', margin + 4, y + 3);
-      y += 6;
-      drawTravaCard('01', margin, y, contentW);
+      doc.setTextColor(GRAY.r, GRAY.g, GRAY.b); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+      doc.text('TOPO DE FUNIL', mLeft + 4, y + 3);
+      y += 7;
+      drawTravaCard('01', mLeft, y, contentW);
       y += cardH + 6;
 
-      // ═══ FLUXO DE RECEITA — BOWTIE ═══
-      checkPage(50);
+      // ══════════════════════════════════════
+      // FLUXO DE RECEITA — BOWTIE
+      // ══════════════════════════════════════
+      // Calculate total height needed: header(12) + legend area(4) + blocks(26) + labels(12) = ~54
+      const bowtieBlockH = 54;
+      checkPage(bowtieBlockH);
       sectionHeader('Fluxo de Receita - Bowtie', BLACK);
 
-      // Legend — top right, readable size
-      const legendY = y - 3;
+      // Legend
+      const legendY = y - 4;
       doc.setFontSize(7); doc.setFont('helvetica', 'bold');
       const legends = [
         { label: 'Saudavel', color: GREEN },
         { label: 'Atencao', color: AMBER },
         { label: 'Critico', color: RED },
       ];
-      let lx = w - margin;
+      let lx = pageW - mRight;
       legends.slice().reverse().forEach(item => {
         const tw = doc.getTextWidth(item.label);
         doc.setTextColor(item.color.r, item.color.g, item.color.b);
@@ -570,12 +573,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         lx -= tw + 14;
       });
 
-      y += 2;
       const bW = (contentW - 6) / 7;
       const bH = 26;
       const bY = y;
-
-      // Bowtie heights: pinch in the middle (07→01 = left to right)
       const bHeights = [1.0, 0.85, 0.65, 0.50, 0.65, 0.85, 1.0];
 
       BOWTIE_STAGES.forEach((stage, idx) => {
@@ -584,11 +584,10 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         const isGarg = stage.trava === activeTrava;
         const stColor = statusColorMap(status, isGarg);
 
-        const x = margin + idx * (bW + 1);
+        const x = mLeft + idx * (bW + 1);
         const stageH = bH * bHeights[idx];
         const topOff = (bH - stageH) / 2;
 
-        // Fill color — use full opacity
         if (isGarg) {
           doc.setFillColor(RED.r, RED.g, RED.b);
         } else if (status === 'sem_dados') {
@@ -596,40 +595,33 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         } else {
           doc.setFillColor(stColor.r, stColor.g, stColor.b);
         }
-
-        // Draw rounded rect
         doc.roundedRect(x, bY + topOff, bW, stageH, 2, 2, 'F');
 
-        // Trava number — large, centered, white
+        // Number
         doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
         doc.text(stage.trava, x + bW / 2, bY + bH / 2 + 2, { align: 'center' });
 
-        // Status label below shape
+        // Status below
         const statusLbl = isGarg ? 'GARGALO' : (STATUS_LABELS[status] || 'SEM DADOS');
-        if (isGarg) {
-          doc.setTextColor(RED.r, RED.g, RED.b);
-        } else if (status === 'sem_dados') {
-          doc.setTextColor(160, 160, 160);
-        } else {
-          doc.setTextColor(stColor.r, stColor.g, stColor.b);
-        }
-        doc.setFontSize(6); doc.setFont('helvetica', 'bold');
+        if (isGarg) doc.setTextColor(RED.r, RED.g, RED.b);
+        else if (status === 'sem_dados') doc.setTextColor(160, 160, 160);
+        else doc.setTextColor(stColor.r, stColor.g, stColor.b);
+        doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
         doc.text(s(statusLbl), x + bW / 2, bY + bH + 5, { align: 'center' });
 
-        // Name below status
+        // Name
         doc.setTextColor(GRAY.r, GRAY.g, GRAY.b);
-        doc.setFontSize(5.5); doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6); doc.setFont('helvetica', 'normal');
         doc.text(s(TRAVA_NAMES[stage.trava] || ''), x + bW / 2, bY + bH + 10, { align: 'center' });
       });
+      y = bY + bH + 14;
 
-      y = bY + bH + 13;
-
-      // ═══ BENCHMARKS TABLE ═══
+      // ══════════════════════════════════════
+      // DADOS DO PROJETO VS MERCADO — TABLE
+      // ══════════════════════════════════════
       y += 3;
-      sectionHeader('Dados do Projeto vs Mercado', RED);
 
-      // Helper to get project data for PDF
       const getProjectDataPDF = (travaId: string): string => {
         const travaKey = `trava${travaId}` as keyof typeof project.funnelData;
         const data = project.funnelData?.[travaKey];
@@ -646,22 +638,41 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         return entries.slice(0, 2).map(([k, v]) => k.toUpperCase().replace(/_/g, ' ') + ': ' + formatV(k, v)).join(' | ');
       };
 
-      const colW4 = [contentW * 0.28, contentW * 0.20, contentW * 0.24, contentW * 0.28];
-      const colX = [margin];
+      // Pre-calculate table height to decide if it fits
+      const tableRowH = 8;
+      const tableHeaderH = 8;
+      const totalTableH = tableHeaderH + ai.stage_scores.length * tableRowH + 2;
+
+      // If table doesn't fit, start new page
+      checkPage(totalTableH + 14); // 14 for section header
+      sectionHeader('Dados do Projeto vs Mercado', RED);
+
+      const colW4 = [contentW * 0.26, contentW * 0.18, contentW * 0.22, contentW * 0.34];
+      const colX = [mLeft];
       for (let i = 1; i < 4; i++) colX.push(colX[i - 1] + colW4[i - 1]);
 
-      // Table header row
-      doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
-      doc.rect(margin, y, contentW, 7, 'F');
-      doc.setTextColor(255, 255, 255); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-      doc.text('TRAVA', colX[0] + 3, y + 5);
-      doc.text('CATEGORIA', colX[1] + 3, y + 5);
-      doc.text('STATUS', colX[2] + 3, y + 5);
-      doc.text('DADOS DO PROJETO', colX[3] + 3, y + 5);
-      y += 7;
+      // Draw table header
+      const drawTableHeader = () => {
+        doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
+        doc.rect(mLeft, y, contentW, tableHeaderH, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+        doc.text('TRAVA', colX[0] + 4, y + 5.5);
+        doc.text('CATEGORIA', colX[1] + 4, y + 5.5);
+        doc.text('STATUS', colX[2] + 4, y + 5.5);
+        doc.text('DADOS DO PROJETO', colX[3] + 4, y + 5.5);
+        y += tableHeaderH;
+      };
+
+      drawTableHeader();
 
       ai.stage_scores.forEach((score, idx) => {
-        checkPage(8);
+        // If row won't fit, add page + re-draw header
+        if (needsNewPage(tableRowH)) {
+          newPage();
+          sectionHeader('Dados do Projeto vs Mercado (cont.)', RED);
+          drawTableHeader();
+        }
+
         const nId = normalizeTravaId(score.trava, score.nome);
         const isGargalo = nId === activeTrava;
 
@@ -672,13 +683,17 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         } else {
           doc.setFillColor(WHITE.r, WHITE.g, WHITE.b);
         }
-        doc.rect(margin, y, contentW, 8, 'F');
+        doc.rect(mLeft, y, contentW, tableRowH, 'F');
+
+        // Draw subtle grid lines
+        doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.15);
+        doc.line(mLeft, y + tableRowH, mLeft + contentW, y + tableRowH);
 
         doc.setTextColor(BLACK.r, BLACK.g, BLACK.b); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-        doc.text(s(`${nId} ${TRAVA_NAMES[nId] || score.nome}`), colX[0] + 3, y + 5.5);
+        doc.text(s(`${nId} ${TRAVA_NAMES[nId] || score.nome}`), colX[0] + 4, y + 5.5);
 
         doc.setTextColor(GRAY.r, GRAY.g, GRAY.b); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
-        doc.text(TRAVA_CATEGORIES[nId] || '--', colX[1] + 3, y + 5.5);
+        doc.text(TRAVA_CATEGORIES[nId] || '--', colX[1] + 4, y + 5.5);
 
         const statusLabel = isGargalo ? 'GARGALO' : (STATUS_LABELS[score.status] || 'SEM DADOS');
         if (isGargalo || score.status === 'critico') doc.setTextColor(RED.r, RED.g, RED.b);
@@ -686,49 +701,56 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         else if (score.status === 'na_media') doc.setTextColor(AMBER.r, AMBER.g, AMBER.b);
         else doc.setTextColor(GRAY.r, GRAY.g, GRAY.b);
         doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
-        doc.text(statusLabel, colX[2] + 3, y + 5.5);
+        doc.text(statusLabel, colX[2] + 4, y + 5.5);
 
-        doc.setTextColor(BLACK.r, BLACK.g, BLACK.b); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5);
+        doc.setTextColor(BLACK.r, BLACK.g, BLACK.b); doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
         const projData = s(getProjectDataPDF(nId));
-        doc.text(projData.slice(0, 35), colX[3] + 3, y + 5.5);
+        // Truncate to fit column
+        const maxDataW = colW4[3] - 8;
+        let truncated = projData;
+        while (doc.getTextWidth(truncated) > maxDataW && truncated.length > 5) {
+          truncated = truncated.slice(0, -4) + '...';
+        }
+        doc.text(truncated, colX[3] + 4, y + 5.5);
 
-        y += 8;
+        y += tableRowH;
       });
 
-      // Thin border around table
-      doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
-      const tableH = ai.stage_scores.length * 8 + 7;
-      doc.rect(margin, y - tableH, contentW, tableH, 'S');
+      // Table border
+      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
       doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2);
+      y += 4;
 
-      // ═══ UDEs ═══
-      y += 3;
+      // ══════════════════════════════════════
+      // UDEs
+      // ══════════════════════════════════════
+      checkPage(20);
       sectionHeader('UDEs - Efeitos Indesejaveis');
       doc.setTextColor(60, 60, 60); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
       ai.udes.forEach((ude, idx) => {
-        checkPage(10);
+        const uLines = doc.splitTextToSize(s(`${idx + 1}. ${ude}`), contentW - 10);
+        const blockH = uLines.length * 4 + 3;
+        checkPage(blockH);
         if (idx % 2 === 0) {
           doc.setFillColor(RED_LIGHT.r, RED_LIGHT.g, RED_LIGHT.b);
-          const uLines = doc.splitTextToSize(s(`${idx + 1}. ${ude}`), contentW - 8);
-          doc.roundedRect(margin, y - 2.5, contentW, uLines.length * 4 + 3, 1, 1, 'F');
+          doc.roundedRect(mLeft, y - 2.5, contentW, blockH, 1, 1, 'F');
         }
         doc.setTextColor(60, 60, 60); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
-        const uLines = doc.splitTextToSize(s(`${idx + 1}. ${ude}`), contentW - 8);
-        doc.text(uLines, margin + 4, y);
-        y += uLines.length * 4 + 3;
+        doc.text(uLines, mLeft + 5, y);
+        y += blockH;
       });
 
       // Metricas prioritarias
       if (ai.metricas_foco.length > 0) {
-        y += 4;
-        checkPage(16);
+        y += 3;
+        checkPage(18);
         doc.setTextColor(RED.r, RED.g, RED.b);
         doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-        doc.text('METRICAS PRIORITARIAS', margin, y);
+        doc.text('METRICAS PRIORITARIAS', mLeft, y);
         y += 5;
-        const mCardW = (contentW - 4) / Math.min(ai.metricas_foco.length, 4);
+        const mCardW = (contentW - 6) / Math.min(ai.metricas_foco.length, 4);
         ai.metricas_foco.slice(0, 4).forEach((m, i) => {
-          const x = margin + i * (mCardW + 1);
+          const x = mLeft + i * (mCardW + 2);
           doc.setFillColor(GRAY_LIGHT.r, GRAY_LIGHT.g, GRAY_LIGHT.b);
           doc.roundedRect(x, y, mCardW, 10, 1.5, 1.5, 'F');
           doc.setTextColor(BLACK.r, BLACK.g, BLACK.b); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
@@ -737,34 +759,37 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         y += 14;
       }
 
-      // ═══ LTP ANALYSIS ═══
-      y += 2;
+      // ══════════════════════════════════════
+      // LTP ANALYSIS
+      // ══════════════════════════════════════
+      y += 3;
 
       // CRT
       sectionHeader('Cadeia de Realidade Atual (CRT)', RED);
       ai.ltp_analysis.crt_nodes.forEach((node, idx) => {
-        checkPage(12);
         const isLast = idx === ai.ltp_analysis.crt_nodes.length - 1;
+        const nLines = doc.splitTextToSize(s(isLast ? node : `${idx + 1}. ${node}`), contentW - 12);
+        const blockH = nLines.length * 4 + (isLast ? 8 : 3);
+        checkPage(blockH);
+
         if (isLast) {
           doc.setFillColor(RED_LIGHT.r, RED_LIGHT.g, RED_LIGHT.b);
-          const nLines = doc.splitTextToSize(s(node), contentW - 12);
-          doc.roundedRect(margin, y - 2, contentW, nLines.length * 4 + 8, 1.5, 1.5, 'F');
+          doc.roundedRect(mLeft, y - 2, contentW, blockH, 1.5, 1.5, 'F');
           doc.setTextColor(RED.r, RED.g, RED.b); doc.setFont('helvetica', 'bold'); doc.setFontSize(6);
-          doc.text('CAUSA RAIZ', margin + 4, y + 1);
+          doc.text('CAUSA RAIZ', mLeft + 5, y + 1);
           y += 4;
           doc.setTextColor(RED_DARK.r, RED_DARK.g, RED_DARK.b); doc.setFontSize(8.5);
-          doc.text(nLines, margin + 4, y);
+          doc.text(nLines, mLeft + 5, y);
           y += nLines.length * 4 + 4;
         } else {
-          const nLines = doc.splitTextToSize(s(`${idx + 1}. ${node}`), contentW - 10);
           doc.setTextColor(60, 60, 60); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
-          doc.text(nLines, margin + 4, y);
-          y += nLines.length * 4 + 2.5;
+          doc.text(nLines, mLeft + 5, y);
+          y += nLines.length * 4 + 3;
         }
       });
 
       // Evaporating Cloud
-      y += 2;
+      y += 3;
       sectionHeader('Evaporating Cloud - Conflito', AMBER);
       const ecFields = [
         { label: 'OBJETIVO', value: ai.ltp_analysis.evaporating_cloud.objetivo, color: BLUE },
@@ -776,64 +801,70 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         { label: 'INJECAO', value: ai.ltp_analysis.evaporating_cloud.injecao, color: GREEN },
       ];
       ecFields.forEach(field => {
-        checkPage(14);
+        const fLines = doc.splitTextToSize(s(field.value), contentW - 10);
+        const blockH = fLines.length * 4 + 7;
+        checkPage(blockH);
         doc.setTextColor(field.color.r, field.color.g, field.color.b);
         doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
-        doc.text(field.label, margin + 3, y);
-        y += 3.5;
+        doc.text(field.label, mLeft + 4, y);
+        y += 4;
         doc.setTextColor(BLACK.r, BLACK.g, BLACK.b); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
-        const fLines = doc.splitTextToSize(s(field.value), contentW - 8);
-        doc.text(fLines, margin + 3, y);
-        y += fLines.length * 4 + 3.5;
+        doc.text(fLines, mLeft + 4, y);
+        y += fLines.length * 4 + 3;
       });
 
       // FRT
       y += 2;
       sectionHeader('Efeitos Desejaveis (FRT)', GREEN);
       ai.ltp_analysis.frt_effects.forEach((e, idx) => {
-        checkPage(9);
+        const eLines = doc.splitTextToSize(s(e), contentW - 14);
+        const blockH = eLines.length * 4 + 4;
+        checkPage(blockH);
         doc.setFillColor(240, 253, 244);
-        const eLines = doc.splitTextToSize(s(e), contentW - 12);
-        doc.roundedRect(margin, y - 2, contentW, eLines.length * 4 + 3, 1, 1, 'F');
+        doc.roundedRect(mLeft, y - 2, contentW, blockH, 1, 1, 'F');
         doc.setTextColor(GREEN.r, GREEN.g, GREEN.b); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
-        doc.text(`${idx + 1}.`, margin + 3, y);
+        doc.text(`${idx + 1}.`, mLeft + 4, y);
         doc.setTextColor(60, 60, 60); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
-        doc.text(eLines, margin + 10, y);
-        y += eLines.length * 4 + 4;
+        doc.text(eLines, mLeft + 11, y);
+        y += blockH;
       });
 
       // Negative Branches
-      y += 3;
+      y += 2;
       sectionHeader('Riscos - Negative Branches', AMBER);
       ai.ltp_analysis.negative_branches.forEach((nb, idx) => {
-        checkPage(9);
+        const nbLines = doc.splitTextToSize(s(nb), contentW - 14);
+        const blockH = nbLines.length * 4 + 4;
+        checkPage(blockH);
         doc.setFillColor(255, 251, 235);
-        const nbLines = doc.splitTextToSize(s(nb), contentW - 12);
-        doc.roundedRect(margin, y - 2, contentW, nbLines.length * 4 + 3, 1, 1, 'F');
+        doc.roundedRect(mLeft, y - 2, contentW, blockH, 1, 1, 'F');
         doc.setTextColor(AMBER.r, AMBER.g, AMBER.b); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
-        doc.text(`${idx + 1}.`, margin + 3, y);
+        doc.text(`${idx + 1}.`, mLeft + 4, y);
         doc.setTextColor(60, 60, 60); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
-        doc.text(nbLines, margin + 10, y);
-        y += nbLines.length * 4 + 4;
+        doc.text(nbLines, mLeft + 11, y);
+        y += blockH;
       });
 
       // Prerequisite Tree
       if (ai.ltp_analysis.prerequisite_tree.length > 0) {
-        y += 3;
+        y += 2;
         sectionHeader('Prerequisite Tree', BLUE);
         ai.ltp_analysis.prerequisite_tree.forEach((prt, idx) => {
-          checkPage(9);
+          const prtLines = doc.splitTextToSize(s(prt), contentW - 14);
+          const blockH = prtLines.length * 4 + 3;
+          checkPage(blockH);
           doc.setTextColor(BLUE.r, BLUE.g, BLUE.b); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
-          doc.text(`${idx + 1}.`, margin + 3, y);
+          doc.text(`${idx + 1}.`, mLeft + 4, y);
           doc.setTextColor(60, 60, 60); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
-          const prtLines = doc.splitTextToSize(s(prt), contentW - 12);
-          doc.text(prtLines, margin + 10, y);
-          y += prtLines.length * 4 + 3;
+          doc.text(prtLines, mLeft + 11, y);
+          y += blockH;
         });
       }
 
-      // ═══ PLANO 90 DIAS ═══
-      y += 2;
+      // ══════════════════════════════════════
+      // PLANO 90 DIAS
+      // ══════════════════════════════════════
+      y += 3;
       sectionHeader(`Plano Estrategico de 90 Dias - ${s(TRAVA_NAMES[activeTrava] || ai.trava_nome)}`, BLACK);
 
       [
@@ -841,41 +872,52 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         { phase: 'MES 02', data: ai.plano_90_dias.mes_2, color: AMBER },
         { phase: 'MES 03', data: ai.plano_90_dias.mes_3, color: GREEN },
       ].forEach(p => {
-        checkPage(18);
+        // Pre-calculate total height for this month
+        let monthH = 12; // phase header
+        p.data.acoes.forEach(a => {
+          const aLines = doc.splitTextToSize(s(a), contentW - 16);
+          monthH += aLines.length * 4 + 3;
+        });
+
+        // If the whole month block doesn't fit, start new page
+        checkPage(Math.min(monthH, 60)); // at least try to keep header + first items
+
         doc.setFillColor(p.color.r, p.color.g, p.color.b);
-        doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, 'F');
+        doc.roundedRect(mLeft, y, contentW, 8, 1.5, 1.5, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
-        doc.text(s(`${p.phase} - ${p.data.titulo}`), margin + 4, y + 5.5);
-        y += 11;
+        doc.text(s(`${p.phase} - ${p.data.titulo}`), mLeft + 5, y + 5.5);
+        y += 12;
 
         p.data.acoes.forEach((a, idx) => {
-          checkPage(10);
+          const aLines = doc.splitTextToSize(s(a), contentW - 16);
+          const blockH = aLines.length * 4 + 3;
+          checkPage(blockH);
+
           if (idx % 2 === 0) {
             doc.setFillColor(GRAY_LIGHT.r, GRAY_LIGHT.g, GRAY_LIGHT.b);
-            const aL = doc.splitTextToSize(s(a), contentW - 14);
-            doc.roundedRect(margin, y - 2, contentW, aL.length * 4 + 3, 1, 1, 'F');
+            doc.roundedRect(mLeft, y - 2, contentW, blockH, 1, 1, 'F');
           }
           doc.setFillColor(p.color.r, p.color.g, p.color.b);
-          doc.circle(margin + 4, y, 1, 'F');
+          doc.circle(mLeft + 5, y, 1.2, 'F');
           doc.setTextColor(60, 60, 60); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
-          const aLines = doc.splitTextToSize(s(a), contentW - 14);
-          doc.text(aLines, margin + 8, y);
-          y += aLines.length * 4 + 3;
+          doc.text(aLines, mLeft + 10, y);
+          y += blockH;
         });
         y += 4;
       });
-      
 
-      // ═══ FOOTER ON ALL PAGES ═══
+      // ══════════════════════════════════════
+      // FOOTER ON ALL PAGES
+      // ══════════════════════════════════════
       const totalPages = doc.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        doc.setDrawColor(220, 220, 220);
-        doc.line(margin, h - 10, w - margin, h - 10);
-        doc.setFontSize(6.5); doc.setTextColor(160, 160, 160); doc.setFont('helvetica', 'normal');
-        doc.text(s(`Diagnostico TOC  |  ${project.name}  |  ${new Date().toLocaleDateString('pt-BR')}`), margin, h - 6);
-        doc.text(`${i}/${totalPages}`, w - margin, h - 6, { align: 'right' });
+        doc.setDrawColor(210, 210, 210);
+        doc.line(mLeft, pageH - mBottom + 6, pageW - mRight, pageH - mBottom + 6);
+        doc.setFontSize(7); doc.setTextColor(160, 160, 160); doc.setFont('helvetica', 'normal');
+        doc.text(s(`Diagnostico TOC  |  ${project.name}  |  ${new Date().toLocaleDateString('pt-BR')}`), mLeft, pageH - mBottom + 12);
+        doc.text(`${i}/${totalPages}`, pageW - mRight, pageH - mBottom + 12, { align: 'right' });
       }
 
       doc.save(`diagnostico-${project.name.replace(/\s+/g, '-').toLowerCase()}.pdf`);
