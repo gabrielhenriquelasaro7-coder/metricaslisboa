@@ -333,7 +333,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       };
 
       const sectionHeader = (title: string, color = RED) => {
-        checkPage(20);
+        checkPage(14);
         doc.setFillColor(color.r, color.g, color.b);
         doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, 'F');
         doc.setTextColor(255, 255, 255);
