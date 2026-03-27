@@ -841,7 +841,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         { phase: 'MES 02', data: ai.plano_90_dias.mes_2, color: AMBER },
         { phase: 'MES 03', data: ai.plano_90_dias.mes_3, color: GREEN },
       ].forEach(p => {
-        checkPage(30);
+        checkPage(18);
         doc.setFillColor(p.color.r, p.color.g, p.color.b);
         doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, 'F');
         doc.setTextColor(255, 255, 255);
