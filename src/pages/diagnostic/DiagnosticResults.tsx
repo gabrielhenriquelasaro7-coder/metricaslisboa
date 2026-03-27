@@ -764,7 +764,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       });
 
       // Evaporating Cloud
-      y += 4;
+      y += 2;
       sectionHeader('Evaporating Cloud - Conflito', AMBER);
       const ecFields = [
         { label: 'OBJETIVO', value: ai.ltp_analysis.evaporating_cloud.objetivo, color: BLUE },
