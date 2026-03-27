@@ -497,8 +497,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
         doc.text(statusLabel, colX[2] + 3, y + 5.5);
 
-        doc.setTextColor(GRAY.r, GRAY.g, GRAY.b); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
-        doc.text(BENCHMARK_DEFAULTS[nId] || '--', colX[3] + 3, y + 5.5);
+        doc.setTextColor(BLACK.r, BLACK.g, BLACK.b); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5);
+        const projData = s(getProjectDataPDF(nId));
+        doc.text(projData.slice(0, 35), colX[3] + 3, y + 5.5);
 
         y += 8;
       });
