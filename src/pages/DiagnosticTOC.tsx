@@ -173,6 +173,27 @@ export default function DiagnosticTOC() {
     }
   };
 
+  const changeProjectMonth = async (p: DiagnosticProject, newMonth: number, newYear: number) => {
+    const dbId = (p as any).dbId || p.id;
+    try {
+      const { error } = await supabase
+        .from('diagnostic_reports')
+        .update({ month: newMonth, year: newYear, updated_at: new Date().toISOString() } as any)
+        .eq('id', dbId as any);
+
+      if (error) throw error;
+      toast.success(`Mês alterado para ${new Date(0, newMonth - 1).toLocaleString('pt-BR', { month: 'long' })}/${newYear}`);
+      fetchReports();
+    } catch (error: any) {
+      console.error('Erro ao alterar mês:', error);
+      if (error?.message?.includes('unique') || error?.message?.includes('duplicate')) {
+        toast.error('Já existe um diagnóstico para este projeto neste mês/ano.');
+      } else {
+        toast.error('Erro ao alterar o mês. Tente novamente.');
+      }
+    }
+  };
+
   const handleStartNew = (systemProjectId?: string) => {
     const selected = systemProjectId ? systemProjects.find(p => p.id === systemProjectId) : null;
 
@@ -394,6 +415,7 @@ export default function DiagnosticTOC() {
                     onOpen={(p) => { setCurrentProject(p); setMode('results'); }}
                     onEdit={(p) => { setCurrentProject(p); setMode('wizard'); }}
                     onDelete={(id) => deleteProject(id)}
+                    onChangeMonth={(p, m, yr) => changeProjectMonth(p, m, yr)}
                   />
                 </div>
               )}
@@ -429,11 +451,12 @@ export default function DiagnosticTOC() {
   );
 }
 
-function ProjectList({ projects, onOpen, onEdit, onDelete }: {
+function ProjectList({ projects, onOpen, onEdit, onDelete, onChangeMonth }: {
   projects: DiagnosticProject[],
   onOpen: (p: DiagnosticProject) => void,
   onEdit: (p: DiagnosticProject) => void,
-  onDelete: (id: string) => void
+  onDelete: (id: string) => void,
+  onChangeMonth: (p: DiagnosticProject, newMonth: number, newYear: number) => void
 }) {
   if (projects.length === 0) {
     return (
@@ -483,8 +506,37 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
                 <span className="text-xs font-black text-foreground">R$ {p.goal.value.toLocaleString()}</span>
               </div>
               <div className="p-3 bg-muted/30 rounded-2xl border border-border flex flex-col gap-1">
-                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Última Escala</span>
-                <span className="text-xs font-black text-muted-foreground">Ativo</span>
+                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Mês de Referência</span>
+                <div className="flex gap-1">
+                  <Select
+                    value={((p as any).month || new Date().getMonth() + 1).toString()}
+                    onValueChange={(v) => onChangeMonth(p, parseInt(v), (p as any).year || new Date().getFullYear())}
+                  >
+                    <SelectTrigger className="h-6 w-[70px] text-[9px] font-black bg-background border-border rounded-lg px-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border text-popover-foreground">
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <SelectItem key={i + 1} value={(i + 1).toString()} className="text-[9px] font-bold uppercase">
+                          {new Date(0, i).toLocaleString('pt-BR', { month: 'short' })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={((p as any).year || new Date().getFullYear()).toString()}
+                    onValueChange={(v) => onChangeMonth(p, (p as any).month || new Date().getMonth() + 1, parseInt(v))}
+                  >
+                    <SelectTrigger className="h-6 w-[56px] text-[9px] font-black bg-background border-border rounded-lg px-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border text-popover-foreground">
+                      {[2024, 2025, 2026].map(yr => (
+                        <SelectItem key={yr} value={yr.toString()} className="text-[9px] font-bold">{yr}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </div>

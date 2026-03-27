@@ -434,7 +434,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         y += 4;
       }
 
-      // ═══ PAINEL DE TRAVAS ═══
+      // ═══ PAINEL DE TRAVAS (2-column layout like UI) ═══
       y += 6;
       sectionHeader('Painel de Travas', RED);
 
@@ -446,7 +446,21 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         return GRAY;
       };
 
-      TRAVA_ORDER.forEach((tId, idx) => {
+      // Two-column layout: left = Vendas/CS (07,06,05), right = Marketing (04,03,02)
+      const colLeft = ['07', '06', '05'];
+      const colRight = ['04', '03', '02'];
+      const colHalf = (contentW - 4) / 2;
+
+      // Column headers
+      doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
+      doc.roundedRect(margin, y, colHalf, 6, 1, 1, 'F');
+      doc.roundedRect(margin + colHalf + 4, y, colHalf, 6, 1, 1, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFontSize(6); doc.setFont('helvetica', 'bold');
+      doc.text('VENDAS / CS', margin + 3, y + 4.2);
+      doc.text('MARKETING', margin + colHalf + 7, y + 4.2);
+      y += 9;
+
+      const drawTravaCard = (tId: string, x: number, cardY: number, cardW: number) => {
         const score = stageScores.find(sc => normalizeTravaId(sc.trava, sc.nome) === tId);
         if (!score) return;
         const nId = normalizeTravaId(score.trava, score.nome);
@@ -455,45 +469,102 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         const pctVal = getDisplayPercent(score, isGarg);
         const statusLbl = isGarg ? 'GARGALO' : (STATUS_LABELS[score.status] || 'SEM DADOS');
 
-        checkPage(14);
         // Card background
         if (isGarg) {
           doc.setFillColor(RED_LIGHT.r, RED_LIGHT.g, RED_LIGHT.b);
-        } else if (idx % 2 === 0) {
-          doc.setFillColor(GRAY_LIGHT.r, GRAY_LIGHT.g, GRAY_LIGHT.b);
         } else {
-          doc.setFillColor(WHITE.r, WHITE.g, WHITE.b);
+          doc.setFillColor(GRAY_LIGHT.r, GRAY_LIGHT.g, GRAY_LIGHT.b);
         }
-        doc.roundedRect(margin, y, contentW, 10, 1.5, 1.5, 'F');
+        doc.roundedRect(x, cardY, cardW, 16, 1.5, 1.5, 'F');
+
+        if (isGarg) {
+          doc.setDrawColor(RED.r, RED.g, RED.b); doc.setLineWidth(0.4);
+          doc.roundedRect(x, cardY, cardW, 16, 1.5, 1.5, 'S');
+          doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2);
+        }
 
         // Trava label
-        doc.setTextColor(BLACK.r, BLACK.g, BLACK.b); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-        doc.text(s(`${nId} ${TRAVA_NAMES[nId] || score.nome}`), margin + 3, y + 6.5);
+        doc.setFontSize(5); doc.setFont('helvetica', 'bold');
+        doc.setTextColor(GRAY.r, GRAY.g, GRAY.b);
+        doc.text(`TRAVA ${nId}`, x + 3, cardY + 4);
 
-        // Status badge
+        doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+        doc.setTextColor(BLACK.r, BLACK.g, BLACK.b);
+        doc.text(s(TRAVA_NAMES[nId] || score.nome), x + 3, cardY + 9);
+
+        // Status badge on the right
         doc.setTextColor(stColor.r, stColor.g, stColor.b);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
-        doc.text(statusLbl, margin + contentW * 0.55, y + 6.5);
+        doc.setFontSize(6); doc.setFont('helvetica', 'bold');
+        doc.text(statusLbl, x + cardW - 3, cardY + 4.5, { align: 'right' });
 
-        // Mini progress bar
-        const barX = margin + contentW * 0.72;
-        const barW = contentW * 0.25;
-        doc.setFillColor(230, 230, 230);
-        doc.roundedRect(barX, y + 3.5, barW, 3, 1.5, 1.5, 'F');
+        // Progress bar (gradient imitation: red → amber → green)
+        const barX = x + 3;
+        const barW = cardW - 6;
+        const barY = cardY + 12;
+        const barH = 2;
+
+        // Background gradient: 3 segments
+        const seg = barW / 3;
+        doc.setFillColor(220, 38, 38); doc.roundedRect(barX, barY, seg, barH, 0.5, 0.5, 'F');
+        doc.setFillColor(245, 158, 11); doc.rect(barX + seg, barY, seg, barH, 'F');
+        doc.setFillColor(16, 185, 129); doc.roundedRect(barX + seg * 2, barY, seg, barH, 0.5, 0.5, 'F');
+
+        // Dot indicator
+        const dotX = barX + barW * (pctVal / 100);
         doc.setFillColor(stColor.r, stColor.g, stColor.b);
-        doc.roundedRect(barX, y + 3.5, barW * (pctVal / 100), 3, 1.5, 1.5, 'F');
+        doc.circle(dotX, barY + barH / 2, 2, 'F');
+        doc.setFillColor(255, 255, 255);
+        doc.circle(dotX, barY + barH / 2, 0.8, 'F');
+      };
 
-        y += 11;
+      const startY = y;
+      // Draw left column (Vendas/CS)
+      colLeft.forEach((tId, idx) => {
+        drawTravaCard(tId, margin, startY + idx * 18, colHalf);
+      });
+      // Draw right column (Marketing)
+      colRight.forEach((tId, idx) => {
+        drawTravaCard(tId, margin + colHalf + 4, startY + idx * 18, colHalf);
       });
 
-      // ═══ FLUXO BOWTIE ═══
+      y = startY + 3 * 18 + 2;
+
+      // Topo de Funil (01) — full width
+      checkPage(20);
+      doc.setDrawColor(220, 220, 220); doc.line(margin, y, w - margin, y); y += 3;
+      doc.setTextColor(GRAY.r, GRAY.g, GRAY.b); doc.setFontSize(6); doc.setFont('helvetica', 'bold');
+      doc.text('TOPO DE FUNIL', margin + 3, y + 3); y += 5;
+      drawTravaCard('01', margin, y, contentW);
+      y += 20;
+
+      // ═══ FLUXO BOWTIE (trapezoid shapes like UI) ═══
       y += 4;
-      checkPage(40);
+      checkPage(50);
       sectionHeader('Fluxo de Receita - Bowtie', BLACK);
 
       const bowtieW = contentW / 7;
-      const bowtieH = 18;
+      const bowtieH = 22;
       const bowtieY = y;
+
+      // Legend row
+      doc.setFontSize(5); doc.setFont('helvetica', 'bold');
+      const legendItems = [
+        { label: 'Saudavel', color: GREEN },
+        { label: 'Atencao', color: AMBER },
+        { label: 'Critico', color: RED },
+      ];
+      let legendX = w - margin;
+      legendItems.reverse().forEach(item => {
+        const tw = doc.getTextWidth(item.label);
+        doc.setTextColor(item.color.r, item.color.g, item.color.b);
+        doc.text(item.label, legendX - tw, bowtieY - 2);
+        doc.setFillColor(item.color.r, item.color.g, item.color.b);
+        doc.circle(legendX - tw - 2.5, bowtieY - 3, 1, 'F');
+        legendX -= tw + 10;
+      });
+
+      // Draw bowtie trapezoids
+      const trapezoidHeights = [100, 80, 60, 50, 60, 80, 100]; // % of bowtieH for each stage
 
       BOWTIE_STAGES.forEach((stage, idx) => {
         const score = stageScores.find(sc => normalizeTravaId(sc.trava, sc.nome) === stage.trava);
@@ -502,33 +573,49 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         const stColor = statusColorMap(status, isGarg);
 
         const x = margin + idx * bowtieW;
+        const thisH = bowtieH * (trapezoidHeights[idx] / 100);
+        const nextH = idx < 6 ? bowtieH * (trapezoidHeights[idx + 1] / 100) : thisH;
+        const topOffset = (bowtieH - thisH) / 2;
 
-        // Trapezoid approximation as rectangle with color
+        // Draw trapezoid as polygon
         if (isGarg) {
           doc.setFillColor(RED.r, RED.g, RED.b);
         } else {
           doc.setFillColor(stColor.r, stColor.g, stColor.b);
         }
-        doc.roundedRect(x + 1, bowtieY, bowtieW - 2, bowtieH, 1.5, 1.5, 'F');
 
-        // Trava number
+        const x1 = x + 1;
+        const x2 = x + bowtieW - 1;
+        const yTop = bowtieY + topOffset;
+        const yBot = bowtieY + bowtieH - topOffset;
+
+        doc.roundedRect(x1, yTop, bowtieW - 2, yBot - yTop, 1.5, 1.5, 'F');
+
+        // Trava number centered
         doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
-        doc.text(stage.trava, x + bowtieW / 2, bowtieY + 8, { align: 'center' });
+        doc.text(stage.trava, x + bowtieW / 2, bowtieY + bowtieH / 2 + 1, { align: 'center' });
 
-        // Status label below
+        // Status label below the shape
         const statusLbl = isGarg ? 'GARGALO' : (STATUS_LABELS[status] || '?');
         doc.setTextColor(stColor.r, stColor.g, stColor.b);
-        doc.setFontSize(5.5); doc.setFont('helvetica', 'bold');
-        doc.text(statusLbl, x + bowtieW / 2, bowtieY + 14, { align: 'center' });
+        doc.setFontSize(5); doc.setFont('helvetica', 'bold');
+        doc.text(statusLbl, x + bowtieW / 2, bowtieY + bowtieH + 4, { align: 'center' });
 
-        // Name below
+        // Name below status
         doc.setTextColor(GRAY.r, GRAY.g, GRAY.b);
         doc.setFontSize(5); doc.setFont('helvetica', 'normal');
-        doc.text(s(TRAVA_NAMES[stage.trava] || ''), x + bowtieW / 2, bowtieY + bowtieH + 4, { align: 'center' });
+        doc.text(s(TRAVA_NAMES[stage.trava] || ''), x + bowtieW / 2, bowtieY + bowtieH + 8, { align: 'center' });
+
+        // Arrow between stages
+        if (idx < BOWTIE_STAGES.length - 1) {
+          const arrowX = x2 + 1;
+          doc.setFillColor(AMBER.r, AMBER.g, AMBER.b);
+          doc.triangle(arrowX, bowtieY + bowtieH / 2 - 2, arrowX, bowtieY + bowtieH / 2 + 2, arrowX + 2, bowtieY + bowtieH / 2, 'F');
+        }
       });
 
-      y = bowtieY + bowtieH + 8;
+      y = bowtieY + bowtieH + 12;
 
       // ═══ BENCHMARKS TABLE ═══
       y += 6;
