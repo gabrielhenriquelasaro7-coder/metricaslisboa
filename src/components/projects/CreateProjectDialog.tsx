@@ -107,15 +107,31 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   }, [selectedCoordinatorId, coordinators]);
 
   const loadCoordinators = async () => {
+    // First get user_ids with cargo 'coordenador' or 'gerente' from user_roles
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('user_id, cargo')
+      .in('cargo', ['coordenador', 'gerente']);
+
+    if (roleError || !roleData || roleData.length === 0) {
+      setCoordinators([]);
+      return;
+    }
+
+    const userIds = roleData.map(r => r.user_id).filter(Boolean);
+
+    // Then get their details from user_management
     const { data, error } = await supabase
       .from('user_management')
       .select('id, user_id, full_name, email, squad_id')
-      .in('cargo', ['coordenador', 'gerente'])
-      .not('user_id', 'is', null) // Only active users
+      .in('user_id', userIds)
+      .not('user_id', 'is', null)
       .order('full_name');
 
     if (!error && data) {
       setCoordinators(data);
+    } else {
+      setCoordinators([]);
     }
   };
 
