@@ -136,17 +136,35 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   };
 
   const loadInvestorsBySquad = async (squadId: string) => {
+    // First get user_ids with cargo 'investidor' from user_roles
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('cargo', 'investidor');
+
+    if (roleError || !roleData || roleData.length === 0) {
+      setInvestors([]);
+      setSelectedInvestorId('');
+      return;
+    }
+
+    const investorUserIds = roleData.map(r => r.user_id).filter(Boolean);
+
+    // Then get their details from user_management filtered by squad
     const { data, error } = await supabase
       .from('user_management')
       .select('id, user_id, full_name, email, squad_id')
-      .eq('cargo', 'investidor')
+      .in('user_id', investorUserIds)
       .eq('squad_id', squadId)
-      .not('user_id', 'is', null) // Only active users
+      .not('user_id', 'is', null)
       .order('full_name');
 
     if (!error && data) {
       setInvestors(data);
-      setSelectedInvestorId(''); // Reset investor selection
+      setSelectedInvestorId('');
+    } else {
+      setInvestors([]);
+      setSelectedInvestorId('');
     }
   };
 
