@@ -230,7 +230,15 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
     const newGoogleId = formData.google_customer_id || '';
     
     try {
-      await updateProject(project.id, formData);
+      // Sanitize empty strings to null for UUID/optional fields
+      const sanitizedData = {
+        ...formData,
+        google_customer_id: formData.google_customer_id?.trim() || null,
+        facebook_page_id: formData.facebook_page_id?.trim() || null,
+        investidor_id: formData.investidor_id || null,
+        squad_id: formData.squad_id || null,
+      };
+      await updateProject(project.id, sanitizedData);
       
       // Handle custom metric config
       if (formData.business_model === 'custom') {
