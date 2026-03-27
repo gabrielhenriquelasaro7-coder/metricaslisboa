@@ -299,6 +299,8 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
       setSelectedSquadId('');
       setSelectedInvestorId('');
       setCustomConfigOpen(false);
+    } catch (error: any) {
+      console.error('Error creating project:', error);
     } finally {
       setIsLoading(false);
     }
