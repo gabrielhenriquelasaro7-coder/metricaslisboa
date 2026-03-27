@@ -985,10 +985,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
 
                     {/* N/A Toggle removed — all travas are mandatory */}
 
-                    <div className={cn(
-                      "grid grid-cols-1 sm:grid-cols-2 gap-5 transition-all",
-                      (funnelData[trava.id as keyof DiagnosticFunnelData] as any)?._nao_aplica && "opacity-30 pointer-events-none"
-                    )}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 transition-all">
                       {trava.fields.map(field => {
                         const isAuto = isFieldAutoFilled(trava.id, field.key);
                         return (
