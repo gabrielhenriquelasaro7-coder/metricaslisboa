@@ -435,7 +435,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       }
 
       // ═══ PAINEL DE TRAVAS (2-column layout replicating UI) ═══
-      y += 6;
+      y += 3;
       sectionHeader('Painel de Travas', RED);
 
       const TRAVA_ORDER = ['07', '06', '05', '04', '03', '02', '01'];
