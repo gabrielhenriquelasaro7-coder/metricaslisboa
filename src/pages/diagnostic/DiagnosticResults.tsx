@@ -961,7 +961,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
           {/* Benchmarks vs Real Table — full width */}
           <div className="space-y-3">
-            <h4 className="text-sm font-black text-foreground uppercase tracking-widest italic ml-2">Benchmarks vs Real</h4>
+            <h4 className="text-sm font-black text-foreground uppercase tracking-widest italic ml-2">Dados do Projeto vs Mercado</h4>
             <div className="bg-muted/20 border border-border rounded-2xl overflow-hidden">
               <table className="w-full text-left text-[11px]">
                 <thead className="bg-muted/40">
@@ -971,13 +971,39 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                     <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest">Categoria</th>
                     <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-center">Status</th>
                     <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-center">Mercado</th>
-                    <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-right">Benchmark</th>
+                    <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-right">Dados do Projeto</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {stageScores.map(score => {
                     const nId = normalizeTravaId(score.trava, score.nome);
                     const isGargalo = nId === activeTrava;
+                    
+                    // Get real project data for each trava
+                    const getProjectData = (travaId: string): string => {
+                      const travaKey = `trava${travaId}` as keyof typeof project.funnelData;
+                      const data = project.funnelData?.[travaKey];
+                      if (!data || typeof data !== 'object') return '—';
+                      
+                      const entries = Object.entries(data)
+                        .filter(([key, val]) => key !== '_nao_aplica' && val !== null && val !== undefined && val !== '' && Number(val) !== 0);
+                      
+                      if (entries.length === 0) return '—';
+                      
+                      // Show the most relevant metric
+                      const formatVal = (key: string, val: any): string => {
+                        const num = Number(val);
+                        if (key.includes('rate') || key === 'ctr' || key === 'win_rate' || key === 'no_show_rate' || key === 'checkout_rate' || key === 'order_rate' || key === 'qualification_rate' || key === 'entry_rate' || key === 'repurchase_rate' || key === 'churn_rate') return `${num.toFixed(1)}%`;
+                        if (key === 'cpm' || key === 'cpc' || key === 'cpl' || key === 'ltv') return `R$ ${num.toFixed(2)}`;
+                        return num.toLocaleString('pt-BR');
+                      };
+                      
+                      return entries.slice(0, 2).map(([k, v]) => {
+                        const label = k.toUpperCase().replace(/_/g, ' ');
+                        return `${label}: ${formatVal(k, v)}`;
+                      }).join(' · ');
+                    };
+                    
                     return (
                       <tr key={score.trava} className={cn("hover:bg-muted/20 transition-colors", isGargalo && "bg-red-600/5")}>
                         <td className="px-5 py-3.5 font-black text-foreground">{getTravaName(score.trava)}</td>
@@ -995,7 +1021,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                           </span>
                         </td>
                         <td className="px-5 py-3.5 text-center text-[10px] text-muted-foreground">{MARKET_BENCHMARKS[nId]?.value || '—'}</td>
-                        <td className="px-5 py-3.5 font-mono text-muted-foreground text-right">{BENCHMARK_DEFAULTS[nId] || '—'}</td>
+                        <td className="px-5 py-3.5 font-mono text-foreground/80 text-right text-[10px]">{getProjectData(nId)}</td>
                       </tr>
                     );
                   })}
