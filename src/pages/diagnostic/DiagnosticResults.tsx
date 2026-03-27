@@ -324,8 +324,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         y = 16;
       };
 
-      const safeBottom = 22; // margem de segurança inferior (footer + respiro)
-      const checkPage = (need: number = 25) => {
+      const safeBottom = 14; // margem de segurança inferior (footer + respiro)
+      const checkPage = (need: number = 12) => {
         if (y > h - safeBottom - need) {
           doc.addPage();
           addMiniHeader();
@@ -333,7 +333,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       };
 
       const sectionHeader = (title: string, color = RED) => {
-        checkPage(20);
+        checkPage(14);
         doc.setFillColor(color.r, color.g, color.b);
         doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, 'F');
         doc.setTextColor(255, 255, 255);
@@ -435,7 +435,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       }
 
       // ═══ PAINEL DE TRAVAS (2-column layout replicating UI) ═══
-      y += 6;
+      y += 3;
       sectionHeader('Painel de Travas', RED);
 
       const TRAVA_ORDER = ['07', '06', '05', '04', '03', '02', '01'];
@@ -549,12 +549,12 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       y += cardH + 6;
 
       // ═══ FLUXO DE RECEITA — BOWTIE ═══
-      checkPage(55);
+      checkPage(50);
       sectionHeader('Fluxo de Receita - Bowtie', BLACK);
 
       // Legend — top right, readable size
       const legendY = y - 3;
-      doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
       const legends = [
         { label: 'Saudavel', color: GREEN },
         { label: 'Atencao', color: AMBER },
@@ -570,13 +570,12 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         lx -= tw + 14;
       });
 
-      y += 4;
-      const bW = (contentW - 6) / 7; // width per stage with gaps
-      const bH = 28; // taller for better proportions
+      y += 2;
+      const bW = (contentW - 6) / 7;
+      const bH = 26;
       const bY = y;
 
       // Bowtie heights: pinch in the middle (07→01 = left to right)
-      // 07=full, 06=85%, 05=65%, 04=50%, 03=65%, 02=85%, 01=full
       const bHeights = [1.0, 0.85, 0.65, 0.50, 0.65, 0.85, 1.0];
 
       BOWTIE_STAGES.forEach((stage, idx) => {
@@ -586,18 +585,20 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         const stColor = statusColorMap(status, isGarg);
 
         const x = margin + idx * (bW + 1);
-        const h = bH * bHeights[idx];
-        const topOff = (bH - h) / 2;
+        const stageH = bH * bHeights[idx];
+        const topOff = (bH - stageH) / 2;
 
-        // Fill color
+        // Fill color — use full opacity
         if (isGarg) {
           doc.setFillColor(RED.r, RED.g, RED.b);
+        } else if (status === 'sem_dados') {
+          doc.setFillColor(160, 160, 160);
         } else {
           doc.setFillColor(stColor.r, stColor.g, stColor.b);
         }
 
-        // Draw rounded rect as trapezoid approximation
-        doc.roundedRect(x, bY + topOff, bW, h, 2, 2, 'F');
+        // Draw rounded rect
+        doc.roundedRect(x, bY + topOff, bW, stageH, 2, 2, 'F');
 
         // Trava number — large, centered, white
         doc.setTextColor(255, 255, 255);
@@ -606,7 +607,13 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
         // Status label below shape
         const statusLbl = isGarg ? 'GARGALO' : (STATUS_LABELS[status] || 'SEM DADOS');
-        doc.setTextColor(stColor.r, stColor.g, stColor.b);
+        if (isGarg) {
+          doc.setTextColor(RED.r, RED.g, RED.b);
+        } else if (status === 'sem_dados') {
+          doc.setTextColor(160, 160, 160);
+        } else {
+          doc.setTextColor(stColor.r, stColor.g, stColor.b);
+        }
         doc.setFontSize(6); doc.setFont('helvetica', 'bold');
         doc.text(s(statusLbl), x + bW / 2, bY + bH + 5, { align: 'center' });
 
@@ -616,10 +623,10 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         doc.text(s(TRAVA_NAMES[stage.trava] || ''), x + bW / 2, bY + bH + 10, { align: 'center' });
       });
 
-      y = bY + bH + 14;
+      y = bY + bH + 13;
 
       // ═══ BENCHMARKS TABLE ═══
-      y += 6;
+      y += 3;
       sectionHeader('Dados do Projeto vs Mercado', RED);
 
       // Helper to get project data for PDF
@@ -695,7 +702,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2);
 
       // ═══ UDEs ═══
-      y += 6;
+      y += 3;
       sectionHeader('UDEs - Efeitos Indesejaveis');
       doc.setTextColor(60, 60, 60); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
       ai.udes.forEach((ude, idx) => {
@@ -731,7 +738,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       }
 
       // ═══ LTP ANALYSIS ═══
-      y += 4;
+      y += 2;
 
       // CRT
       sectionHeader('Cadeia de Realidade Atual (CRT)', RED);
@@ -757,7 +764,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       });
 
       // Evaporating Cloud
-      y += 4;
+      y += 2;
       sectionHeader('Evaporating Cloud - Conflito', AMBER);
       const ecFields = [
         { label: 'OBJETIVO', value: ai.ltp_analysis.evaporating_cloud.objetivo, color: BLUE },
@@ -781,7 +788,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       });
 
       // FRT
-      y += 3;
+      y += 2;
       sectionHeader('Efeitos Desejaveis (FRT)', GREEN);
       ai.ltp_analysis.frt_effects.forEach((e, idx) => {
         checkPage(9);
@@ -826,7 +833,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       }
 
       // ═══ PLANO 90 DIAS ═══
-      y += 4;
+      y += 2;
       sectionHeader(`Plano Estrategico de 90 Dias - ${s(TRAVA_NAMES[activeTrava] || ai.trava_nome)}`, BLACK);
 
       [
@@ -834,7 +841,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         { phase: 'MES 02', data: ai.plano_90_dias.mes_2, color: AMBER },
         { phase: 'MES 03', data: ai.plano_90_dias.mes_3, color: GREEN },
       ].forEach(p => {
-        checkPage(30);
+        checkPage(18);
         doc.setFillColor(p.color.r, p.color.g, p.color.b);
         doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, 'F');
         doc.setTextColor(255, 255, 255);
