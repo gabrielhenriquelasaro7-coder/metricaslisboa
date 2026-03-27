@@ -702,7 +702,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2);
 
       // ═══ UDEs ═══
-      y += 6;
+      y += 3;
       sectionHeader('UDEs - Efeitos Indesejaveis');
       doc.setTextColor(60, 60, 60); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
       ai.udes.forEach((ude, idx) => {
