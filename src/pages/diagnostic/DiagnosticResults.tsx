@@ -436,7 +436,24 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
       // ═══ BENCHMARKS TABLE ═══
       y += 6;
-      sectionHeader('Benchmarks vs Real', RED);
+      sectionHeader('Dados do Projeto vs Mercado', RED);
+
+      // Helper to get project data for PDF
+      const getProjectDataPDF = (travaId: string): string => {
+        const travaKey = `trava${travaId}` as keyof typeof project.funnelData;
+        const data = project.funnelData?.[travaKey];
+        if (!data || typeof data !== 'object') return '--';
+        const entries = Object.entries(data)
+          .filter(([key, val]) => key !== '_nao_aplica' && val !== null && val !== undefined && val !== '' && Number(val) !== 0);
+        if (entries.length === 0) return '--';
+        const formatV = (key: string, val: any): string => {
+          const num = Number(val);
+          if (key.includes('rate') || key === 'ctr' || key.includes('_rate') || key === 'churn_rate') return num.toFixed(1) + '%';
+          if (key === 'cpm' || key === 'cpc' || key === 'cpl' || key === 'ltv') return 'R$ ' + num.toFixed(2);
+          return num.toLocaleString('pt-BR');
+        };
+        return entries.slice(0, 2).map(([k, v]) => k.toUpperCase().replace(/_/g, ' ') + ': ' + formatV(k, v)).join(' | ');
+      };
 
       const colW4 = [contentW * 0.28, contentW * 0.20, contentW * 0.24, contentW * 0.28];
       const colX = [margin];
