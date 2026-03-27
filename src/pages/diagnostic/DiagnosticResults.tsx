@@ -738,7 +738,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       }
 
       // ═══ LTP ANALYSIS ═══
-      y += 4;
+      y += 2;
 
       // CRT
       sectionHeader('Cadeia de Realidade Atual (CRT)', RED);
