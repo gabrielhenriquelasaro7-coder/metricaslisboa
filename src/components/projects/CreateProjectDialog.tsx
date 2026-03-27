@@ -74,7 +74,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { createProject } = useProjects();
   const { squads } = useSquads();
-  const { isTech, isGerente, isCoordenador, isInvestidor } = useCargo();
+  const { isTech, isGerente, isCoordenador, isInvestidor, loading: cargoLoading } = useCargo();
   const [customConfigOpen, setCustomConfigOpen] = useState(false);
 
   // Coordenador, Squad e Investidor
@@ -107,30 +107,64 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   }, [selectedCoordinatorId, coordinators]);
 
   const loadCoordinators = async () => {
+    // First get user_ids with cargo 'coordenador' or 'gerente' from user_roles
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('user_id, cargo')
+      .in('cargo', ['coordenador', 'gerente']);
+
+    if (roleError || !roleData || roleData.length === 0) {
+      setCoordinators([]);
+      return;
+    }
+
+    const userIds = roleData.map(r => r.user_id).filter(Boolean);
+
+    // Then get their details from user_management
     const { data, error } = await supabase
       .from('user_management')
       .select('id, user_id, full_name, email, squad_id')
-      .in('cargo', ['coordenador', 'gerente'])
-      .not('user_id', 'is', null) // Only active users
+      .in('user_id', userIds)
+      .not('user_id', 'is', null)
       .order('full_name');
 
     if (!error && data) {
       setCoordinators(data);
+    } else {
+      setCoordinators([]);
     }
   };
 
   const loadInvestorsBySquad = async (squadId: string) => {
+    // First get user_ids with cargo 'investidor' from user_roles
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('cargo', 'investidor');
+
+    if (roleError || !roleData || roleData.length === 0) {
+      setInvestors([]);
+      setSelectedInvestorId('');
+      return;
+    }
+
+    const investorUserIds = roleData.map(r => r.user_id).filter(Boolean);
+
+    // Then get their details from user_management filtered by squad
     const { data, error } = await supabase
       .from('user_management')
       .select('id, user_id, full_name, email, squad_id')
-      .eq('cargo', 'investidor')
+      .in('user_id', investorUserIds)
       .eq('squad_id', squadId)
-      .not('user_id', 'is', null) // Only active users
+      .not('user_id', 'is', null)
       .order('full_name');
 
     if (!error && data) {
       setInvestors(data);
-      setSelectedInvestorId(''); // Reset investor selection
+      setSelectedInvestorId('');
+    } else {
+      setInvestors([]);
+      setSelectedInvestorId('');
     }
   };
 
@@ -364,7 +398,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
-        {(isTech || isGerente || isCoordenador || isInvestidor) && (
+        {!cargoLoading && (isTech || isGerente || isCoordenador || isInvestidor) && (
           <DialogTrigger asChild>
             <Button variant="outline" size="sm">
               <Plus className="w-3.5 h-3.5 mr-1" />
