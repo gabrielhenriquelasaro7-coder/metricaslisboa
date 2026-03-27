@@ -449,7 +449,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       doc.text('TRAVA', colX[0] + 3, y + 5);
       doc.text('CATEGORIA', colX[1] + 3, y + 5);
       doc.text('STATUS', colX[2] + 3, y + 5);
-      doc.text('BENCHMARK', colX[3] + 3, y + 5);
+      doc.text('DADOS DO PROJETO', colX[3] + 3, y + 5);
       y += 7;
 
       ai.stage_scores.forEach((score, idx) => {
