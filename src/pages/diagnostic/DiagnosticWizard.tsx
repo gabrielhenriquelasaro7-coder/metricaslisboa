@@ -9,7 +9,6 @@ import {
 } from '@/types/diagnostic';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
