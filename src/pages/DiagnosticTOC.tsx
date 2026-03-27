@@ -429,11 +429,12 @@ export default function DiagnosticTOC() {
   );
 }
 
-function ProjectList({ projects, onOpen, onEdit, onDelete }: {
+function ProjectList({ projects, onOpen, onEdit, onDelete, onChangeMonth }: {
   projects: DiagnosticProject[],
   onOpen: (p: DiagnosticProject) => void,
   onEdit: (p: DiagnosticProject) => void,
-  onDelete: (id: string) => void
+  onDelete: (id: string) => void,
+  onChangeMonth: (p: DiagnosticProject, newMonth: number, newYear: number) => void
 }) {
   if (projects.length === 0) {
     return (
@@ -483,8 +484,37 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
                 <span className="text-xs font-black text-foreground">R$ {p.goal.value.toLocaleString()}</span>
               </div>
               <div className="p-3 bg-muted/30 rounded-2xl border border-border flex flex-col gap-1">
-                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Última Escala</span>
-                <span className="text-xs font-black text-muted-foreground">Ativo</span>
+                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Mês de Referência</span>
+                <div className="flex gap-1">
+                  <Select
+                    value={((p as any).month || new Date().getMonth() + 1).toString()}
+                    onValueChange={(v) => onChangeMonth(p, parseInt(v), (p as any).year || new Date().getFullYear())}
+                  >
+                    <SelectTrigger className="h-6 w-[70px] text-[9px] font-black bg-background border-border rounded-lg px-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border text-popover-foreground">
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <SelectItem key={i + 1} value={(i + 1).toString()} className="text-[9px] font-bold uppercase">
+                          {new Date(0, i).toLocaleString('pt-BR', { month: 'short' })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={((p as any).year || new Date().getFullYear()).toString()}
+                    onValueChange={(v) => onChangeMonth(p, (p as any).month || new Date().getMonth() + 1, parseInt(v))}
+                  >
+                    <SelectTrigger className="h-6 w-[56px] text-[9px] font-black bg-background border-border rounded-lg px-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border text-popover-foreground">
+                      {[2024, 2025, 2026].map(yr => (
+                        <SelectItem key={yr} value={yr.toString()} className="text-[9px] font-bold">{yr}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </div>
