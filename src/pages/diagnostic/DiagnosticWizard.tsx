@@ -983,26 +983,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                       )}
                     </div>
 
-                    {/* N/A Toggle */}
-                     <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/30 border border-border">
-                      <Checkbox
-                        id={`nao-aplica-${trava.id}`}
-                        checked={(funnelData[trava.id as keyof DiagnosticFunnelData] as any)?._nao_aplica === true}
-                        onCheckedChange={(checked) => {
-                          setFunnelData(prev => ({
-                            ...prev,
-                            [trava.id]: {
-                              ...prev[trava.id as keyof DiagnosticFunnelData],
-                              _nao_aplica: checked === true,
-                            },
-                          }));
-                        }}
-                        className="border-muted-foreground data-[state=checked]:bg-muted-foreground data-[state=checked]:border-muted-foreground"
-                      />
-                      <label htmlFor={`nao-aplica-${trava.id}`} className="text-[11px] text-muted-foreground font-bold cursor-pointer select-none">
-                        Esta trava não se aplica ao meu negócio
-                      </label>
-                    </div>
+                    {/* N/A Toggle removed — all travas are mandatory */}
 
                     <div className={cn(
                       "grid grid-cols-1 sm:grid-cols-2 gap-5 transition-all",
