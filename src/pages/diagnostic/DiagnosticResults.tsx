@@ -833,7 +833,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       }
 
       // ═══ PLANO 90 DIAS ═══
-      y += 4;
+      y += 2;
       sectionHeader(`Plano Estrategico de 90 Dias - ${s(TRAVA_NAMES[activeTrava] || ai.trava_nome)}`, BLACK);
 
       [
