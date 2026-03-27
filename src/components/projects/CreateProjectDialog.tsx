@@ -225,7 +225,13 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
 
     setIsLoading(true);
     try {
-      const project = await createProject(formData);
+      // Sanitize empty strings to null for optional fields
+      const sanitizedData = {
+        ...formData,
+        google_customer_id: formData.google_customer_id?.trim() || null,
+        facebook_page_id: (formData as any).facebook_page_id?.trim() || null,
+      };
+      const project = await createProject(sanitizedData);
 
       // Atualizar projeto com squad_id e investidor_id
       if (selectedSquadId || selectedInvestorId) {
