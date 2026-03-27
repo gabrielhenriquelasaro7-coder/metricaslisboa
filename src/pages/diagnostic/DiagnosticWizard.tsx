@@ -8,7 +8,6 @@ import {
   FunnelTravaData,
 } from '@/types/diagnostic';
 import { Card } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -374,7 +373,67 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
     }
   };
 
+  // Validation: check if current step has all required fields filled
+  const isIdentificationComplete = () => {
+    return identification.companyName.trim() !== '' &&
+      identification.product.trim() !== '' &&
+      identification.segment.trim() !== '' &&
+      identification.icp.trim() !== '' &&
+      identification.location.trim() !== '';
+  };
+
+  const isBusinessComplete = () => {
+    return business.contributionMargin > 0 &&
+      business.averageTicket > 0 &&
+      business.revenue > 0;
+  };
+
+  const isMarketComplete = () => {
+    return market.tam > 0 && market.sam > 0 && market.som > 0;
+  };
+
+  const isCurrentTravaComplete = () => {
+    const trava = travaConfigs[currentTravaIdx];
+    if (!trava) return true;
+    const travaData = funnelData[trava.id as keyof DiagnosticFunnelData] as FunnelTravaData | undefined;
+    if (!travaData) return false;
+    // All fields in this trava must have a value
+    return trava.fields.every(field => {
+      const val = travaData[field.key];
+      return val !== null && val !== undefined && val !== '' && Number(val) !== 0;
+    });
+  };
+
+  const areAllTravasComplete = () => {
+    return travaConfigs.every(trava => {
+      const travaData = funnelData[trava.id as keyof DiagnosticFunnelData] as FunnelTravaData | undefined;
+      if (!travaData) return false;
+      return trava.fields.every(field => {
+        const val = travaData[field.key];
+        return val !== null && val !== undefined && val !== '' && Number(val) !== 0;
+      });
+    });
+  };
+
   const handleNext = async () => {
+    // Validate current step before advancing
+    if (currentStep.id === 'identification' && !isIdentificationComplete()) {
+      toast.error('Preencha todos os campos de identificação antes de avançar.');
+      return;
+    }
+    if (currentStep.id === 'business' && !isBusinessComplete()) {
+      toast.error('Preencha todos os dados financeiros antes de avançar.');
+      return;
+    }
+    if (currentStep.id === 'market' && !isMarketComplete()) {
+      toast.error('Preencha todos os campos de mercado (TAM, SAM, SOM) antes de avançar.');
+      return;
+    }
+    if (currentStep.id === 'funnel' && !isCurrentTravaComplete()) {
+      toast.error('Preencha todos os campos desta trava antes de avançar.');
+      return;
+    }
+
     if (currentStep.id === 'funnel' && currentTravaIdx < travaConfigs.length - 1) {
       setCurrentTravaIdx(prev => prev + 1);
       window.scrollTo(0, 0);
@@ -386,6 +445,10 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
       setCurrentTravaIdx(0);
       window.scrollTo(0, 0);
     } else if (currentStep.id === 'funnel') {
+      if (!areAllTravasComplete()) {
+        toast.error('Preencha todos os dados de todas as travas antes de executar a análise IA.');
+        return;
+      }
       // Move to review & trigger AI analysis
       setCurrentStepIdx(STEPS.length - 1);
       window.scrollTo(0, 0);
@@ -919,31 +982,9 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                       )}
                     </div>
 
-                    {/* N/A Toggle */}
-                     <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/30 border border-border">
-                      <Checkbox
-                        id={`nao-aplica-${trava.id}`}
-                        checked={(funnelData[trava.id as keyof DiagnosticFunnelData] as any)?._nao_aplica === true}
-                        onCheckedChange={(checked) => {
-                          setFunnelData(prev => ({
-                            ...prev,
-                            [trava.id]: {
-                              ...prev[trava.id as keyof DiagnosticFunnelData],
-                              _nao_aplica: checked === true,
-                            },
-                          }));
-                        }}
-                        className="border-muted-foreground data-[state=checked]:bg-muted-foreground data-[state=checked]:border-muted-foreground"
-                      />
-                      <label htmlFor={`nao-aplica-${trava.id}`} className="text-[11px] text-muted-foreground font-bold cursor-pointer select-none">
-                        Esta trava não se aplica ao meu negócio
-                      </label>
-                    </div>
+                    {/* N/A Toggle removed — all travas are mandatory */}
 
-                    <div className={cn(
-                      "grid grid-cols-1 sm:grid-cols-2 gap-5 transition-all",
-                      (funnelData[trava.id as keyof DiagnosticFunnelData] as any)?._nao_aplica && "opacity-30 pointer-events-none"
-                    )}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 transition-all">
                       {trava.fields.map(field => {
                         const isAuto = isFieldAutoFilled(trava.id, field.key);
                         return (
