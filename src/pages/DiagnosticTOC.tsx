@@ -415,6 +415,7 @@ export default function DiagnosticTOC() {
                     onOpen={(p) => { setCurrentProject(p); setMode('results'); }}
                     onEdit={(p) => { setCurrentProject(p); setMode('wizard'); }}
                     onDelete={(id) => deleteProject(id)}
+                    onChangeMonth={(p, m, yr) => changeProjectMonth(p, m, yr)}
                   />
                 </div>
               )}
