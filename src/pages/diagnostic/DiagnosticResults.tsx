@@ -788,7 +788,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       });
 
       // FRT
-      y += 3;
+      y += 2;
       sectionHeader('Efeitos Desejaveis (FRT)', GREEN);
       ai.ltp_analysis.frt_effects.forEach((e, idx) => {
         checkPage(9);
