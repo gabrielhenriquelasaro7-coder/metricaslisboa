@@ -173,6 +173,27 @@ export default function DiagnosticTOC() {
     }
   };
 
+  const changeProjectMonth = async (p: DiagnosticProject, newMonth: number, newYear: number) => {
+    const dbId = (p as any).dbId || p.id;
+    try {
+      const { error } = await supabase
+        .from('diagnostic_reports')
+        .update({ month: newMonth, year: newYear, updated_at: new Date().toISOString() } as any)
+        .eq('id', dbId as any);
+
+      if (error) throw error;
+      toast.success(`Mês alterado para ${new Date(0, newMonth - 1).toLocaleString('pt-BR', { month: 'long' })}/${newYear}`);
+      fetchReports();
+    } catch (error: any) {
+      console.error('Erro ao alterar mês:', error);
+      if (error?.message?.includes('unique') || error?.message?.includes('duplicate')) {
+        toast.error('Já existe um diagnóstico para este projeto neste mês/ano.');
+      } else {
+        toast.error('Erro ao alterar o mês. Tente novamente.');
+      }
+    }
+  };
+
   const handleStartNew = (systemProjectId?: string) => {
     const selected = systemProjectId ? systemProjects.find(p => p.id === systemProjectId) : null;
 
