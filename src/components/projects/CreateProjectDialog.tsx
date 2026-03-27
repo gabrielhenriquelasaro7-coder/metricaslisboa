@@ -74,7 +74,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { createProject } = useProjects();
   const { squads } = useSquads();
-  const { isTech, isGerente, isCoordenador, isInvestidor } = useCargo();
+  const { isTech, isGerente, isCoordenador, isInvestidor, loading: cargoLoading } = useCargo();
   const [customConfigOpen, setCustomConfigOpen] = useState(false);
 
   // Coordenador, Squad e Investidor
