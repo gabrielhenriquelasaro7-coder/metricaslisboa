@@ -434,6 +434,102 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         y += 4;
       }
 
+      // ═══ PAINEL DE TRAVAS ═══
+      y += 6;
+      sectionHeader('Painel de Travas', RED);
+
+      const TRAVA_ORDER = ['07', '06', '05', '04', '03', '02', '01'];
+      const statusColorMap = (st: string, isGarg: boolean) => {
+        if (isGarg || st === 'critico') return RED;
+        if (st === 'bom') return GREEN;
+        if (st === 'na_media') return AMBER;
+        return GRAY;
+      };
+
+      TRAVA_ORDER.forEach((tId, idx) => {
+        const score = stageScores.find(sc => normalizeTravaId(sc.trava, sc.nome) === tId);
+        if (!score) return;
+        const nId = normalizeTravaId(score.trava, score.nome);
+        const isGarg = nId === activeTrava;
+        const stColor = statusColorMap(score.status, isGarg);
+        const pctVal = getDisplayPercent(score, isGarg);
+        const statusLbl = isGarg ? 'GARGALO' : (STATUS_LABELS[score.status] || 'SEM DADOS');
+
+        checkPage(14);
+        // Card background
+        if (isGarg) {
+          doc.setFillColor(RED_LIGHT.r, RED_LIGHT.g, RED_LIGHT.b);
+        } else if (idx % 2 === 0) {
+          doc.setFillColor(GRAY_LIGHT.r, GRAY_LIGHT.g, GRAY_LIGHT.b);
+        } else {
+          doc.setFillColor(WHITE.r, WHITE.g, WHITE.b);
+        }
+        doc.roundedRect(margin, y, contentW, 10, 1.5, 1.5, 'F');
+
+        // Trava label
+        doc.setTextColor(BLACK.r, BLACK.g, BLACK.b); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+        doc.text(s(`${nId} ${TRAVA_NAMES[nId] || score.nome}`), margin + 3, y + 6.5);
+
+        // Status badge
+        doc.setTextColor(stColor.r, stColor.g, stColor.b);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+        doc.text(statusLbl, margin + contentW * 0.55, y + 6.5);
+
+        // Mini progress bar
+        const barX = margin + contentW * 0.72;
+        const barW = contentW * 0.25;
+        doc.setFillColor(230, 230, 230);
+        doc.roundedRect(barX, y + 3.5, barW, 3, 1.5, 1.5, 'F');
+        doc.setFillColor(stColor.r, stColor.g, stColor.b);
+        doc.roundedRect(barX, y + 3.5, barW * (pctVal / 100), 3, 1.5, 1.5, 'F');
+
+        y += 11;
+      });
+
+      // ═══ FLUXO BOWTIE ═══
+      y += 4;
+      checkPage(40);
+      sectionHeader('Fluxo de Receita - Bowtie', BLACK);
+
+      const bowtieW = contentW / 7;
+      const bowtieH = 18;
+      const bowtieY = y;
+
+      BOWTIE_STAGES.forEach((stage, idx) => {
+        const score = stageScores.find(sc => normalizeTravaId(sc.trava, sc.nome) === stage.trava);
+        const status = score?.status || 'sem_dados';
+        const isGarg = stage.trava === activeTrava;
+        const stColor = statusColorMap(status, isGarg);
+
+        const x = margin + idx * bowtieW;
+
+        // Trapezoid approximation as rectangle with color
+        if (isGarg) {
+          doc.setFillColor(RED.r, RED.g, RED.b);
+        } else {
+          doc.setFillColor(stColor.r, stColor.g, stColor.b);
+        }
+        doc.roundedRect(x + 1, bowtieY, bowtieW - 2, bowtieH, 1.5, 1.5, 'F');
+
+        // Trava number
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+        doc.text(stage.trava, x + bowtieW / 2, bowtieY + 8, { align: 'center' });
+
+        // Status label below
+        const statusLbl = isGarg ? 'GARGALO' : (STATUS_LABELS[status] || '?');
+        doc.setTextColor(stColor.r, stColor.g, stColor.b);
+        doc.setFontSize(5.5); doc.setFont('helvetica', 'bold');
+        doc.text(statusLbl, x + bowtieW / 2, bowtieY + 14, { align: 'center' });
+
+        // Name below
+        doc.setTextColor(GRAY.r, GRAY.g, GRAY.b);
+        doc.setFontSize(5); doc.setFont('helvetica', 'normal');
+        doc.text(s(TRAVA_NAMES[stage.trava] || ''), x + bowtieW / 2, bowtieY + bowtieH + 4, { align: 'center' });
+      });
+
+      y = bowtieY + bowtieH + 8;
+
       // ═══ BENCHMARKS TABLE ═══
       y += 6;
       sectionHeader('Dados do Projeto vs Mercado', RED);
