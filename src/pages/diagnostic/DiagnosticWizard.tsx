@@ -416,6 +416,18 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
     return '00';
   };
 
+  // Helper: check if user actually filled data for a given trava
+  const userFilledTrava = (travaId: string): boolean => {
+    const travaKey = `trava${travaId}` as keyof DiagnosticFunnelData;
+    const travaData = funnelData?.[travaKey] as FunnelTravaData | undefined;
+    if (!travaData) return false;
+    // Check if any numeric field has a value (ignore _nao_aplica flag)
+    return Object.entries(travaData).some(([key, val]) => {
+      if (key === '_nao_aplica') return false;
+      return val !== null && val !== undefined && val !== '' && val !== 0 && Number(val) !== 0;
+    });
+  };
+
   const enforceBlindnessRule = (analysis: any): any => {
     const stageScores = Array.isArray(analysis?.stage_scores) ? analysis.stage_scores : [];
 
@@ -430,7 +442,12 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
 
         const travaKey = `trava${travaId}` as keyof DiagnosticFunnelData;
         const travaData = funnelData?.[travaKey] as FunnelTravaData | undefined;
-        return travaData?._nao_aplica !== true;
+        if (travaData?._nao_aplica === true) return false;
+
+        // If the user actually filled data for this trava, do NOT count as missing
+        if (userFilledTrava(travaId)) return false;
+
+        return true;
       });
 
     if (missingStages.length < 2) return analysis;
