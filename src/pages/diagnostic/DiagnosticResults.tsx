@@ -626,7 +626,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       y = bY + bH + 13;
 
       // ═══ BENCHMARKS TABLE ═══
-      y += 6;
+      y += 3;
       sectionHeader('Dados do Projeto vs Mercado', RED);
 
       // Helper to get project data for PDF
