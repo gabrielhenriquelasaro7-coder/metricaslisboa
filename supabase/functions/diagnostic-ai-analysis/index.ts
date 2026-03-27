@@ -160,7 +160,7 @@ Analise de Trava 07 → Trava 01 (fundo para topo, seguindo a lógica TOC) e ide
         "HTTP-Referer": "https://metricaslisboa.lovable.app",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-001",
+        model: "anthropic/claude-opus-4",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
