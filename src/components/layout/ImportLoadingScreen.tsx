@@ -179,7 +179,7 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
     return monthsByYear[year]?.find(m => m.month === monthNum) || null;
   };
 
-  if (loading) {
+  if (loading || months.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background">
         <div className="relative w-20 h-20 flex items-center justify-center">
@@ -191,7 +191,7 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
           />
           <img src="https://storage.googleapis.com/gpt-engineer-file-uploads/nhtEAca6m1WvYLxj21XNZ7dwaa42/uploads/1768843484749-simbolo.webp" alt="V4" className="w-8 h-8 brightness-0 invert opacity-90" />
         </div>
-        <p className="text-[10px] text-white/40 uppercase tracking-[0.3em] mt-8 font-medium">Iniciando...</p>
+        <p className="text-[10px] text-white/40 uppercase tracking-[0.3em] mt-8 font-medium">Iniciando Importação...</p>
       </div>
     );
   }

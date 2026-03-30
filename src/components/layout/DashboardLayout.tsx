@@ -28,10 +28,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     try {
       const dismissed = localStorage.getItem(`import_dismissed_${projectId}`);
       if (dismissed === "true") return false;
+
+      // 1. Check sync_progress in projects table
+      const { data: project } = await supabase
+        .from("projects")
+        .select("sync_progress")
+        .eq("id", projectId)
+        .maybeSingle();
+
+      const syncProgress = project?.sync_progress as any;
+      if (syncProgress?.status === 'importing') return true;
+
+      // 2. Fallback check in project_import_months
       const { data: months } = await supabase
         .from("project_import_months")
         .select("status")
         .eq("project_id", projectId);
+
       if (!months || months.length === 0) return false;
       return months.some((m: any) => m.status === "importing" || m.status === "pending");
     } catch {

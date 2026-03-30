@@ -74,7 +74,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { createProject } = useProjects();
   const { squads } = useSquads();
-  const { isTech, isGerente, isCoordenador } = useCargo();
+  const { isTech, isGerente, isCoordenador, isInvestidor } = useCargo();
   const [customConfigOpen, setCustomConfigOpen] = useState(false);
 
   // Coordenador, Squad e Investidor
@@ -269,10 +269,9 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     if (!pendingProjectId) return;
 
     setSelectedImportMode(mode);
-    setShowImportModeDialog(false);
-    setCreatedProjectId(pendingProjectId);
-    setCreatedProjectName(pendingProjectName);
     setShowImportProgress(true);
+    // Persist as selected project immediately
+    localStorage.setItem("selectedProjectId", pendingProjectId);
 
     // Start the import with the selected mode
     const startYear = 2025;
@@ -343,15 +342,20 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   };
 
   const handleImportModeClose = () => {
-    setShowImportModeDialog(false);
-    setPendingProjectId(null);
-    setPendingProjectName('');
+    if (pendingProjectId) {
+      localStorage.setItem("selectedProjectId", pendingProjectId);
+      window.location.reload();
+    }
     onSuccess?.();
   };
 
   const handleImportProgressCloseHandler = (openState: boolean) => {
     setShowImportProgress(openState);
     if (!openState) {
+      if (createdProjectId) {
+        localStorage.setItem("selectedProjectId", createdProjectId);
+        window.location.reload();
+      }
       setCreatedProjectId(null);
       setCreatedProjectName('');
       setPendingProjectId(null);
@@ -364,7 +368,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
-        {(isTech || isGerente || isCoordenador) && (
+        {(isTech || isGerente || isCoordenador || isInvestidor) && (
           <DialogTrigger asChild>
             <Button variant="outline" size="sm">
               <Plus className="w-3.5 h-3.5 mr-1" />
