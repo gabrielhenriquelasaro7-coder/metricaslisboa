@@ -130,25 +130,27 @@ export function useProjects() {
       // Investidor: will be filtered client-side by guest_project_access
       // Membro: will be filtered client-side by guest_project_access
       if (isCoordenador && userSquads.length > 0) {
-        // Coordenador sees only projects from their squad
-        const squadIds = userSquads.map(s => s.id);
-        query = query.in('squad_id', squadIds);
+        // Coordenador sees projects from their squad(s) + projects they created
+        const squadIds = userSquads.map(s => `squad_id.eq.${s.id}`).join(',');
+        query = query.or(`${squadIds},user_id.eq.${user.id}`);
+      } else if (isCoordenador && userSquads.length === 0) {
+        // Coordenador without squads - only see own projects
+        query = query.eq('user_id', user.id);
       } else if (isInvestidor || isMembro) {
-        // For investidor and membro, we need to check guest_project_access
+        // For investidor and membro, check guest_project_access + own projects
         const { data: accessData } = await supabase
           .from('guest_project_access')
           .select('project_id')
           .eq('user_id', user.id);
         
-        if (accessData && accessData.length > 0) {
-          const projectIds = accessData.map(a => a.project_id);
-          query = query.in('id', projectIds);
+        const projectIds = (accessData || []).map(a => a.project_id);
+        
+        if (projectIds.length > 0) {
+          // Include both accessible projects and projects they created
+          query = query.or(`id.in.(${projectIds.join(',')}),user_id.eq.${user.id}`);
         } else {
-          // No access to any projects
-          setProjects([]);
-          setLoading(false);
-          clearTimeout(timeoutId);
-          return;
+          // Only show projects they created
+          query = query.eq('user_id', user.id);
         }
       }
       // Tech and Gerente: no filter, see all
