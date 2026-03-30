@@ -84,12 +84,44 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   const [selectedSquadId, setSelectedSquadId] = useState<string>('');
   const [selectedInvestorId, setSelectedInvestorId] = useState<string>('');
 
-  // Carregar coordenadores ao abrir
+  // Carregar dados iniciais ao abrir
   useEffect(() => {
     if (open) {
-      loadCoordinators();
+      const initializeData = async () => {
+        await loadCoordinators();
+        
+        if (isInvestidor) {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const { data: userData } = await supabase
+                .from('user_management')
+                .select('id, user_id, squad_id, full_name')
+                .eq('user_id', user.id)
+                .maybeSingle();
+
+              if (userData) {
+                // Auto-preencher dados do investidor logado
+                setSelectedInvestorId(userData.user_id);
+                if (userData.squad_id) {
+                  setSelectedSquadId(userData.squad_id);
+                  loadInvestorsBySquad(userData.squad_id);
+                  
+                  // Tentar encontrar um coordenador para esta squad e pré-selecionar
+                  // Buscamos nos coordenadores já carregados
+                  // (usando timeout curto para garantir que coordinators já esteja no estado)
+                }
+              }
+            }
+          } catch (err) {
+            console.error('Erro ao carregar dados do usuário logado:', err);
+          }
+        }
+      };
+      
+      initializeData();
     }
-  }, [open]);
+  }, [open, isInvestidor]);
 
   // Quando coordenador é selecionado, atribuir squad automaticamente e carregar investidores
   useEffect(() => {
@@ -130,7 +162,10 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
 
     if (!error && data) {
       setInvestors(data);
-      setSelectedInvestorId(''); // Reset investor selection
+      // Mantém quem já está selecionado (útil para auto-preenchimento)
+      if (!selectedInvestorId) {
+        setSelectedInvestorId('');
+      }
     }
   };
 
@@ -194,10 +229,13 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
       const project = await createProject(formData);
 
       // Atualizar projeto com squad_id e investidor_id
-      if (selectedSquadId || selectedInvestorId) {
+      const squadIdToUpdate = selectedSquadId || null;
+      const investorIdToUpdate = selectedInvestorId || null;
+
+      if (squadIdToUpdate || investorIdToUpdate) {
         await supabase.from('projects').update({
-          squad_id: selectedSquadId || null,
-          investidor_id: selectedInvestorId || null,
+          squad_id: squadIdToUpdate,
+          investidor_id: investorIdToUpdate,
         }).eq('id', project.id);
       }
 
@@ -344,7 +382,10 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   const handleImportModeClose = () => {
     if (pendingProjectId) {
       localStorage.setItem("selectedProjectId", pendingProjectId);
-      window.location.reload();
+      window.dispatchEvent(new CustomEvent("project-selected", { detail: { projectId: pendingProjectId } }));
+      setShowImportModeDialog(false);
+      setPendingProjectId(null);
+      setPendingProjectName('');
     }
     onSuccess?.();
   };
@@ -354,7 +395,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     if (!openState) {
       if (createdProjectId) {
         localStorage.setItem("selectedProjectId", createdProjectId);
-        window.location.reload();
+        window.dispatchEvent(new CustomEvent("project-selected", { detail: { projectId: createdProjectId } }));
       }
       setCreatedProjectId(null);
       setCreatedProjectName('');

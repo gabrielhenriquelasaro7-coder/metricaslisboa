@@ -44,9 +44,10 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
       return;
     }
     localStorage.setItem('selectedProjectId', projectId);
+    window.dispatchEvent(new CustomEvent('project-selected', { detail: { projectId } }));
     setOpen(false);
     setSearch('');
-    window.location.reload();
+    // Removido window.location.reload() para maior fluidez
     onSelect?.();
   };
 

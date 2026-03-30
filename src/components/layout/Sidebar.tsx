@@ -122,6 +122,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     if (projectId === selectedProjectId) return;
     setIsChangingProject(true);
     localStorage.setItem('selectedProjectId', projectId);
+    // Dispara evento para atualização fluida do DashboardLayout
+    window.dispatchEvent(new CustomEvent('project-selected', { detail: { projectId } }));
     // Navigate without full page reload - use React Router only
     navigate('/dashboard');
     // Reset state after navigation

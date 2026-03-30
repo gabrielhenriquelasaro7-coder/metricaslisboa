@@ -76,13 +76,29 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             setIsImporting(importing);
           } else {
             localStorage.removeItem("selectedProjectId");
+            setProjectInfo(null);
+            setIsImporting(false);
           }
+        } else {
+          setProjectInfo(null);
+          setIsImporting(false);
         }
       } catch (error) {
         console.error("Error in dashboard init:", error);
       }
     };
+
     init();
+
+    // Listen for project selection events for fluid transitions
+    const handleProjectSelected = () => {
+      init();
+    };
+
+    window.addEventListener("project-selected", handleProjectSelected);
+    return () => {
+      window.removeEventListener("project-selected", handleProjectSelected);
+    };
   }, [user, loading, roleLoading, isGuest, navigate, checkImportStatus]);
 
   const handleImportComplete = useCallback(() => {
