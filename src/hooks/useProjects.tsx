@@ -130,25 +130,23 @@ export function useProjects() {
       // Investidor: will be filtered client-side by guest_project_access
       // Membro: will be filtered client-side by guest_project_access
       if (isCoordenador && userSquads.length > 0) {
-        // Coordenador sees only projects from their squad
+        // Coordenador sees projects from their squad OR projects they own
         const squadIds = userSquads.map(s => s.id);
-        query = query.in('squad_id', squadIds);
+        const squadFilter = squadIds.map(id => `squad_id.eq.${id}`).join(',');
+        query = query.or(`${squadFilter},user_id.eq.${user.id}`);
       } else if (isInvestidor || isMembro) {
-        // For investidor and membro, we need to check guest_project_access
+        // For investidor and membro, check guest_project_access + owned projects
         const { data: accessData } = await supabase
           .from('guest_project_access')
           .select('project_id')
           .eq('user_id', user.id);
 
-        if (accessData && accessData.length > 0) {
-          const projectIds = accessData.map(a => a.project_id);
-          query = query.in('id', projectIds);
+        const projectIds = (accessData || []).map(a => a.project_id);
+        if (projectIds.length > 0) {
+          query = query.or(`id.in.(${projectIds.join(',')}),user_id.eq.${user.id}`);
         } else {
-          // No access to any projects
-          setProjects([]);
-          setLoading(false);
-          clearTimeout(timeoutId);
-          return;
+          // Only owned projects
+          query = query.eq('user_id', user.id);
         }
       }
       // Tech and Gerente: no filter, see all

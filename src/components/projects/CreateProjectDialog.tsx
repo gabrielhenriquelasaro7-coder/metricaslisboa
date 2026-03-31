@@ -409,14 +409,13 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
-        {(isTech || isGerente || isCoordenador || isInvestidor) && (
+        {/* Todos os cargos podem criar projetos */}
           <DialogTrigger asChild>
             <Button variant="outline" size="sm">
               <Plus className="w-3.5 h-3.5 mr-1" />
               Novo
             </Button>
           </DialogTrigger>
-        )}
         <DialogContent className="sm:max-w-lg max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-xl">Criar novo projeto</DialogTitle>
@@ -730,8 +729,8 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
       <ImportProgressDialog
         open={showImportProgress}
         onOpenChange={handleImportProgressCloseHandler}
-        projectId={createdProjectId}
-        projectName={createdProjectName}
+        projectId={pendingProjectId}
+        projectName={pendingProjectName}
       />
     </>
   );

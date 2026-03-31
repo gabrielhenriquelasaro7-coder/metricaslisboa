@@ -102,9 +102,11 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
     const fetchOptions = async () => {
       // Fetch investidores (users with cargo = 'investidor') along with their squad
       const { data: investidoresData } = await supabase
-        .from('user_roles')
-        .select('user_id, cargo')
-        .eq('cargo', 'investidor');
+        .from('user_management')
+        .select('id, user_id, full_name, email, squad_id')
+        .eq('cargo', 'investidor')
+        .not('user_id', 'is', null)
+        .order('full_name');
 
       if (investidoresData && investidoresData.length > 0) {
         setInvestidores(investidoresData as Investidor[]);
