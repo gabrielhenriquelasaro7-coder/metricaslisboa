@@ -95,6 +95,7 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
       localStorage.setItem(`import_dismissed_${projectId}`, 'true');
       // Wait a moment then complete
       const timer = setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('project-import-complete', { detail: { projectId } }));
         onComplete();
       }, 1500);
       return () => clearTimeout(timer);
