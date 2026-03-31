@@ -64,6 +64,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
   const { profile } = useProfile();
   const { isGuest, loading: roleLoading } = useUserRole();
   const { needsAdminApproval, isTech, isMaster, loading: cargoLoading } = useCargo();
+  const canSeeAnalytics = isTech || isMaster;
   const { theme, toggleTheme } = useTheme();
   const { isTabHidden } = useTabVisibility();
   const [adminAccessModalOpen, setAdminAccessModalOpen] = useState(false);
