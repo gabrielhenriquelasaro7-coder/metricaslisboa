@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, XCircle, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, AlertCircle, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useMonthImportStatus } from '@/hooks/useMonthImportStatus';
+import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ImportProgressDialogProps {
   open: boolean;
@@ -12,12 +17,27 @@ interface ImportProgressDialogProps {
   projectName: string;
 }
 
-interface SyncLog {
-  id: string;
-  status: string;
-  message: string | null;
-  created_at: string;
-}
+const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+const statusIcon = (status: string) => {
+  switch (status) {
+    case 'success': return <CheckCircle className="w-3.5 h-3.5 text-green-500" />;
+    case 'error': return <XCircle className="w-3.5 h-3.5 text-red-500" />;
+    case 'importing': return <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />;
+    case 'skipped': return <AlertCircle className="w-3.5 h-3.5 text-yellow-500" />;
+    default: return <Clock className="w-3.5 h-3.5 text-muted-foreground" />;
+  }
+};
+
+const statusColor = (status: string) => {
+  switch (status) {
+    case 'success': return 'bg-green-500/20 border-green-500/30 text-green-600 dark:text-green-400';
+    case 'error': return 'bg-red-500/20 border-red-500/30 text-red-600 dark:text-red-400';
+    case 'importing': return 'bg-primary/20 border-primary/30 text-primary animate-pulse';
+    case 'skipped': return 'bg-yellow-500/20 border-yellow-500/30 text-yellow-600 dark:text-yellow-400';
+    default: return 'bg-muted border-border text-muted-foreground';
+  }
+};
 
 export function ImportProgressDialog({ 
   open, 
@@ -25,122 +45,45 @@ export function ImportProgressDialog({
   projectId,
   projectName 
 }: ImportProgressDialogProps) {
-  const [logs, setLogs] = useState<SyncLog[]>([]);
-  const [isComplete, setIsComplete] = useState(false);
-  const [hasError, setHasError] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const { months, stats, progress: monthProgress, loading: monthsLoading } = useMonthImportStatus(projectId);
   const [statusMessage, setStatusMessage] = useState('Iniciando importação...');
+
+  const isComplete = stats.total > 0 && stats.pending === 0 && stats.importing === 0;
+  const hasError = stats.error > 0;
+  const progress = stats.total > 0 ? monthProgress : 0;
+  const isImporting = stats.importing > 0;
 
   useEffect(() => {
     if (!projectId || !open) return;
 
-    // Fetch initial logs
-    const fetchLogs = async () => {
-      const { data } = await supabase
-        .from('sync_logs')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (data && data.length > 0) {
-        setLogs(data);
-        analyzeProgress(data);
+    if (isComplete && hasError) {
+      setStatusMessage(`Importação concluída com ${stats.error} mês(es) com erro. ${stats.totalRecords} registros importados.`);
+    } else if (isComplete) {
+      setStatusMessage(`Importação completa! ${stats.totalRecords} registros importados.`);
+    } else if (isImporting) {
+      const importingMonth = months.find(m => m.status === 'importing');
+      if (importingMonth) {
+        setStatusMessage(`Importando ${MONTH_NAMES[importingMonth.month - 1]} ${importingMonth.year}...`);
+      } else {
+        setStatusMessage('Sincronizando dados...');
       }
-    };
-
-    fetchLogs();
-
-    // Subscribe to realtime updates
-    const channel = supabase
-      .channel(`sync-logs-${projectId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'sync_logs',
-          filter: `project_id=eq.${projectId}`,
-        },
-        (payload) => {
-          const newLog = payload.new as SyncLog;
-          setLogs(prev => [newLog, ...prev]);
-          analyzeProgress([newLog, ...logs]);
-        }
-      )
-      .subscribe();
-
-    // Poll for updates every 5 seconds as backup
-    const interval = setInterval(fetchLogs, 5000);
-
-    return () => {
-      channel.unsubscribe();
-      clearInterval(interval);
-    };
-  }, [projectId, open]);
-
-  const analyzeProgress = (logData: SyncLog[]) => {
-    const latestLog = logData[0];
-    if (!latestLog) return;
-
-    try {
-      const message = latestLog.message ? JSON.parse(latestLog.message) : null;
-      
-      if (message?.type === 'historical_import') {
-        const totalBatches = message.total_batches || 13;
-        const successBatches = message.success_batches || 0;
-        const totalRecords = message.total_records || 0;
-        
-        setProgress(100);
-        setIsComplete(true);
-        
-        if (successBatches === 0) {
-          setHasError(true);
-          setStatusMessage(`Importação concluída, mas nenhum dado foi encontrado. Verifique as permissões do token Meta.`);
-        } else if (successBatches < totalBatches) {
-          setStatusMessage(`Importação parcial: ${successBatches}/${totalBatches} batches, ${totalRecords} registros`);
-        } else {
-          setStatusMessage(`Importação completa: ${totalRecords} registros importados!`);
-        }
-      } else if (latestLog.status === 'started') {
-        setProgress(10);
-        setStatusMessage('Importação iniciada...');
-      } else if (latestLog.status === 'syncing') {
-        setProgress(prev => Math.min(prev + 5, 90));
-        setStatusMessage('Sincronizando dados do Meta Ads...');
-      }
-    } catch {
-      // If message is not JSON, use status
-      if (latestLog.status === 'success') {
-        setProgress(100);
-        setIsComplete(true);
-        setStatusMessage('Importação concluída!');
-      } else if (latestLog.status === 'error') {
-        setProgress(100);
-        setIsComplete(true);
-        setHasError(true);
-        setStatusMessage(latestLog.message || 'Erro na importação');
-      }
+    } else if (stats.total === 0) {
+      setStatusMessage('Preparando meses para importação...');
+    } else {
+      setStatusMessage('Aguardando início da importação...');
     }
-  };
+  }, [projectId, open, isComplete, hasError, isImporting, months, stats]);
 
-  // Simulate progress while waiting for real updates
-  useEffect(() => {
-    if (!open || isComplete) return;
-
-    const timer = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 90) return prev;
-        return prev + 2;
-      });
-    }, 2000);
-
-    return () => clearInterval(timer);
-  }, [open, isComplete]);
+  // Group months by year
+  const monthsByYear: Record<number, typeof months> = {};
+  months.forEach(m => {
+    if (!monthsByYear[m.year]) monthsByYear[m.year] = [];
+    monthsByYear[m.year].push(m);
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isComplete ? (
@@ -159,13 +102,66 @@ export function ImportProgressDialog({
         <div className="space-y-4 py-4">
           <Progress value={progress} className="h-2" />
           
-          <p className="text-sm text-muted-foreground text-center">
-            {statusMessage}
-          </p>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{statusMessage}</span>
+            <span className="text-xs font-mono text-muted-foreground">
+              {Math.round(progress)}%
+            </span>
+          </div>
+
+          {/* Month-by-month grid */}
+          {stats.total > 0 && (
+            <ScrollArea className="max-h-[300px]">
+              <TooltipProvider>
+                <div className="space-y-3">
+                  {Object.entries(monthsByYear).sort(([a], [b]) => Number(a) - Number(b)).map(([year, yearMonths]) => (
+                    <div key={year}>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1.5">{year}</p>
+                      <div className="grid grid-cols-6 gap-1.5">
+                        {yearMonths.map(m => (
+                          <Tooltip key={m.id}>
+                            <TooltipTrigger asChild>
+                              <div className={cn(
+                                "flex flex-col items-center gap-0.5 p-1.5 rounded-lg border text-xs cursor-default transition-colors",
+                                statusColor(m.status)
+                              )}>
+                                {statusIcon(m.status)}
+                                <span className="font-medium text-[10px]">{MONTH_NAMES[m.month - 1]}</span>
+                                {m.records_count > 0 && (
+                                  <span className="text-[9px] opacity-70">{m.records_count}</span>
+                                )}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              <p className="font-semibold">{MONTH_NAMES[m.month - 1]} {m.year}</p>
+                              <p>Status: {m.status}</p>
+                              {m.records_count > 0 && <p>{m.records_count} registros</p>}
+                              {m.error_message && <p className="text-red-400 max-w-[200px]">{m.error_message}</p>}
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </TooltipProvider>
+            </ScrollArea>
+          )}
+
+          {/* Stats summary */}
+          {stats.total > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {stats.success > 0 && <Badge variant="outline" className="text-green-500 border-green-500/30">✓ {stats.success}</Badge>}
+              {stats.importing > 0 && <Badge variant="outline" className="text-primary border-primary/30">⟳ {stats.importing}</Badge>}
+              {stats.pending > 0 && <Badge variant="outline" className="text-muted-foreground">⏳ {stats.pending}</Badge>}
+              {stats.error > 0 && <Badge variant="outline" className="text-red-500 border-red-500/30">✗ {stats.error}</Badge>}
+              {stats.totalRecords > 0 && <Badge variant="outline">{stats.totalRecords.toLocaleString()} registros</Badge>}
+            </div>
+          )}
 
           {!isComplete && (
             <p className="text-xs text-muted-foreground text-center">
-              Importando dados desde 01/01/2025... Isso pode levar alguns minutos.
+              Importando dados mês a mês... Isso pode levar alguns minutos.
             </p>
           )}
 
