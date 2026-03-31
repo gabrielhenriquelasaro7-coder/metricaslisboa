@@ -730,8 +730,8 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
       <ImportProgressDialog
         open={showImportProgress}
         onOpenChange={handleImportProgressCloseHandler}
-        projectId={createdProjectId}
-        projectName={createdProjectName}
+        projectId={pendingProjectId}
+        projectName={pendingProjectName}
       />
     </>
   );
