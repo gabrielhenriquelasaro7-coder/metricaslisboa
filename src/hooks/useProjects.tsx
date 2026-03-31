@@ -73,7 +73,7 @@ export function useProjects() {
   const [projects, setProjects] = useState<Project[]>(globalProjectsCache.projects);
   const [loading, setLoading] = useState(true);
   const { user, loading: authLoading } = useAuth();
-  const { cargo, userSquads, loading: cargoLoading, isTech, isGerente, isCoordenador, isInvestidor, isMembro } = useCargo();
+  const { loading: cargoLoading } = useCargo();
 
   // Subscribe to global project changes
   useEffect(() => {
@@ -124,33 +124,6 @@ export function useProjects() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Filter based on cargo
-      // Tech and Gerente: see all projects
-      // Coordenador: see only projects from their squad(s)
-      // Investidor: will be filtered client-side by guest_project_access
-      // Membro: will be filtered client-side by guest_project_access
-      if (isCoordenador && userSquads.length > 0) {
-        // Coordenador sees projects from their squad OR projects they own
-        const squadIds = userSquads.map(s => s.id);
-        const squadFilter = squadIds.map(id => `squad_id.eq.${id}`).join(',');
-        query = query.or(`${squadFilter},user_id.eq.${user.id}`);
-      } else if (isInvestidor || isMembro) {
-        // For investidor and membro, check guest_project_access + owned projects
-        const { data: accessData } = await supabase
-          .from('guest_project_access')
-          .select('project_id')
-          .eq('user_id', user.id);
-
-        const projectIds = (accessData || []).map(a => a.project_id);
-        if (projectIds.length > 0) {
-          query = query.or(`id.in.(${projectIds.join(',')}),user_id.eq.${user.id}`);
-        } else {
-          // Only owned projects
-          query = query.eq('user_id', user.id);
-        }
-      }
-      // Tech and Gerente: no filter, see all
-
       const { data, error } = await query;
 
       clearTimeout(timeoutId);
@@ -182,7 +155,7 @@ export function useProjects() {
       globalProjectsCache.fetchPromise = null;
       setLoading(false);
     }
-  }, [user, authLoading, cargoLoading, cargo, userSquads, isTech, isGerente, isCoordenador, isInvestidor, isMembro]);
+  }, [user, authLoading, cargoLoading]);
 
   useEffect(() => {
     fetchProjects();
@@ -192,7 +165,31 @@ export function useProjects() {
   useEffect(() => {
     globalProjectsCache.loaded = false;
     globalProjectsCache.fetchPromise = null;
-  }, [user?.id, cargo, userSquads.length]);
+  }, [user?.id]);
+
+  const resolveInvestidorUsers = useCallback(async (investidorIds: string[]) => {
+    const uniqueIds = [...new Set(investidorIds.filter(Boolean))];
+
+    if (uniqueIds.length === 0) {
+      return [] as Array<{ id: string; user_id: string }>;
+    }
+
+    const joinedIds = uniqueIds.join(',');
+    const { data, error } = await supabase
+      .from('user_management')
+      .select('id, user_id')
+      .or(`user_id.in.(${joinedIds}),id.in.(${joinedIds})`)
+      .not('user_id', 'is', null);
+
+    if (error) throw error;
+
+    const deduped = new Map<string, { id: string; user_id: string }>();
+    for (const investor of data || []) {
+      deduped.set(investor.user_id, investor as { id: string; user_id: string });
+    }
+
+    return Array.from(deduped.values());
+  }, []);
 
   // Subscribe to realtime updates for sync progress AND new projects
   useEffect(() => {
@@ -310,23 +307,20 @@ export function useProjects() {
 
       // Insert investidores if provided
       if (investidor_ids && investidor_ids.length > 0) {
-        const investidorRecords = investidor_ids.map(investidor_id => ({
+        const investidorUsers = await resolveInvestidorUsers(investidor_ids);
+
+        const investidorRecords = investidorUsers.map(({ id }) => ({
           project_id: project.id,
-          investidor_id,
+          investidor_id: id,
         }));
 
-        await supabase
-          .from('project_investidores')
-          .insert(investidorRecords);
+        if (investidorRecords.length > 0) {
+          await supabase
+            .from('project_investidores')
+            .insert(investidorRecords);
+        }
 
         // CRITICAL: Also insert into guest_project_access so investors can see the project
-        // Get user_ids from user_management for these investidores
-        const { data: investidorUsers } = await supabase
-          .from('user_management')
-          .select('id, user_id')
-          .in('id', investidor_ids)
-          .not('user_id', 'is', null);
-
         if (investidorUsers && investidorUsers.length > 0) {
           const accessRecords = investidorUsers.map(inv => ({
             project_id: project.id,
@@ -435,7 +429,7 @@ export function useProjects() {
           .delete()
           .eq('project_id', id);
 
-        // Delete existing guest_project_access for investors of this project
+          // Delete existing guest_project_access for investors of this project
         // First get all investor user_ids that had access
         const { data: oldInvestors } = await supabase
           .from('guest_project_access')
@@ -444,47 +438,44 @@ export function useProjects() {
 
         // Insert new investidores
         if (investidor_ids.length > 0) {
-          const investidorRecords = investidor_ids.map(investidor_id => ({
-            project_id: id,
-            investidor_id,
-          }));
-
-          await supabase
-            .from('project_investidores')
-            .insert(investidorRecords);
-
-          // Also update guest_project_access for new investors
-          const { data: investidorUsers } = await supabase
-            .from('user_management')
-            .select('id, user_id')
-            .in('id', investidor_ids)
-            .not('user_id', 'is', null);
-
-          if (investidorUsers && investidorUsers.length > 0) {
-            const accessRecords = investidorUsers.map(inv => ({
+            const investidorUsers = await resolveInvestidorUsers(investidor_ids);
+            const investidorRecords = investidorUsers.map(({ id: managementId }) => ({
               project_id: id,
-              user_id: inv.user_id,
-              granted_by: currentUser?.id || '',
+              investidor_id: managementId,
             }));
 
-            await supabase
-              .from('guest_project_access')
-              .upsert(accessRecords, { onConflict: 'user_id,project_id' });
-          }
+            if (investidorRecords.length > 0) {
+              await supabase
+                .from('project_investidores')
+                .insert(investidorRecords);
+            }
 
-          // Remove access for investors that were removed
-          if (oldInvestors && investidorUsers) {
-            const newUserIds = investidorUsers.map(u => u.user_id);
-            const toRemove = oldInvestors
-              .filter(old => !newUserIds.includes(old.user_id))
-              .map(old => old.user_id);
+            if (investidorUsers.length > 0) {
+              const accessRecords = investidorUsers.map(inv => ({
+                project_id: id,
+                user_id: inv.user_id,
+                granted_by: currentUser?.id || '',
+              }));
 
-            if (toRemove.length > 0) {
               await supabase
                 .from('guest_project_access')
-                .delete()
-                .eq('project_id', id)
-                .in('user_id', toRemove);
+                .upsert(accessRecords, { onConflict: 'user_id,project_id' });
+            }
+
+            // Remove access for investors that were removed
+            if (oldInvestors && investidorUsers) {
+              const newUserIds = investidorUsers.map(u => u.user_id);
+              const toRemove = oldInvestors
+                .filter(old => !newUserIds.includes(old.user_id))
+                .map(old => old.user_id);
+
+              if (toRemove.length > 0) {
+                await supabase
+                  .from('guest_project_access')
+                  .delete()
+                  .eq('project_id', id)
+                  .in('user_id', toRemove);
+              }
             }
           }
         } else {

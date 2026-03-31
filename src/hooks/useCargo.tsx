@@ -230,7 +230,7 @@ export function useCargo(): CargoData {
     canManageSquads: isTech || isGerente,
     canManageUsers: isGerente,
     canAccessFullAdmin: isTech,
-    canImportProject: isTech || isGerente || isCoordenador || isInvestidor,
+    canImportProject: !!user,
     canSeeAnalytics: isTech || isMaster,
     canSeeDiagnostics: isTech || isMaster,
     needsAdminApproval: isInvestidor || isCoordenador,

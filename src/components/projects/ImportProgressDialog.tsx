@@ -45,7 +45,7 @@ export function ImportProgressDialog({
   projectId,
   projectName 
 }: ImportProgressDialogProps) {
-  const { months, stats, progress: monthProgress, loading: monthsLoading } = useMonthImportStatus(projectId);
+  const { months, stats, progress: monthProgress } = useMonthImportStatus(projectId);
   const [statusMessage, setStatusMessage] = useState('Iniciando importação...');
 
   const isComplete = stats.total > 0 && stats.pending === 0 && stats.importing === 0;
@@ -73,6 +73,16 @@ export function ImportProgressDialog({
       setStatusMessage('Aguardando início da importação...');
     }
   }, [projectId, open, isComplete, hasError, isImporting, months, stats]);
+
+  useEffect(() => {
+    if (!open || !isComplete || hasError) return;
+
+    const timer = window.setTimeout(() => {
+      onOpenChange(false);
+    }, 1600);
+
+    return () => window.clearTimeout(timer);
+  }, [open, isComplete, hasError, onOpenChange]);
 
   // Group months by year
   const monthsByYear: Record<number, typeof months> = {};
