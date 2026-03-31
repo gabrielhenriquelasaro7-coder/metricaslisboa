@@ -409,7 +409,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
-        {(isTech || isGerente || isCoordenador || isInvestidor) && (
+        {/* Todos os cargos podem criar projetos */}
           <DialogTrigger asChild>
             <Button variant="outline" size="sm">
               <Plus className="w-3.5 h-3.5 mr-1" />
