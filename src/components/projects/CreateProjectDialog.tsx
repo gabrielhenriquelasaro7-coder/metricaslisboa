@@ -416,7 +416,6 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
               Novo
             </Button>
           </DialogTrigger>
-        )}
         <DialogContent className="sm:max-w-lg max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-xl">Criar novo projeto</DialogTitle>
