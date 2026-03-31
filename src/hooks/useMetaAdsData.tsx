@@ -686,27 +686,6 @@ export function useMetaAdsData() {
     loadDataFromDatabase();
   }, [selectedProject?.id, loadDataFromDatabase]);
 
-  useEffect(() => {
-    if (!selectedProject?.id) return;
-
-    const handleProjectImportComplete = (event: Event) => {
-      const customEvent = event as CustomEvent<{ projectId?: string }>;
-      const completedProjectId = customEvent.detail?.projectId;
-
-      if (completedProjectId && completedProjectId !== selectedProject.id) return;
-
-      invalidateCreativeImageCache();
-      lastLoadedPeriodRef.current = null;
-      void loadDataFromDatabase();
-    };
-
-    window.addEventListener('project-import-complete', handleProjectImportComplete as EventListener);
-
-    return () => {
-      window.removeEventListener('project-import-complete', handleProjectImportComplete as EventListener);
-    };
-  }, [selectedProject?.id, loadDataFromDatabase]);
-
   return {
     campaigns,
     adSets,

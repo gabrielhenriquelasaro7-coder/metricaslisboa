@@ -37,7 +37,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         .maybeSingle();
 
       const syncProgress = project?.sync_progress as any;
-      const projectMarkedAsImporting = syncProgress?.status === 'importing';
+      if (syncProgress?.status === 'importing') return true;
 
       // 2. Fallback check in project_import_months
       const { data: months } = await supabase
@@ -45,7 +45,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         .select("status")
         .eq("project_id", projectId);
 
-      if (!months || months.length === 0) return projectMarkedAsImporting;
+      if (!months || months.length === 0) return false;
       return months.some((m: any) => m.status === "importing" || m.status === "pending");
     } catch {
       return false;

@@ -307,13 +307,9 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     if (!pendingProjectId) return;
 
     setSelectedImportMode(mode);
-    setShowImportModeDialog(false);
     setShowImportProgress(true);
-    setCreatedProjectId(pendingProjectId);
-    setCreatedProjectName(pendingProjectName);
     // Persist as selected project immediately
     localStorage.setItem("selectedProjectId", pendingProjectId);
-    window.dispatchEvent(new CustomEvent("project-selected", { detail: { projectId: pendingProjectId } }));
 
     // Start the import with the selected mode
     const startYear = 2025;
@@ -397,14 +393,10 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   const handleImportProgressCloseHandler = (openState: boolean) => {
     setShowImportProgress(openState);
     if (!openState) {
-      const nextProjectId = createdProjectId || pendingProjectId;
-
-      if (nextProjectId) {
-        localStorage.setItem("selectedProjectId", nextProjectId);
-        window.dispatchEvent(new CustomEvent("project-selected", { detail: { projectId: nextProjectId } }));
-        window.dispatchEvent(new CustomEvent("project-import-complete", { detail: { projectId: nextProjectId } }));
+      if (createdProjectId) {
+        localStorage.setItem("selectedProjectId", createdProjectId);
+        window.dispatchEvent(new CustomEvent("project-selected", { detail: { projectId: createdProjectId } }));
       }
-
       setCreatedProjectId(null);
       setCreatedProjectName('');
       setPendingProjectId(null);
