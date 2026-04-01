@@ -429,24 +429,76 @@ export function useProjects() {
         // Get current user for granted_by
         const { data: { user: currentUser } } = await supabase.auth.getUser();
 
+        // Capture previous investor-linked users (only investors, not all guest accesses)
+        const { data: previousLinks } = await supabase
+          .from('project_investidores')
+          .select('investidor_id')
+          .eq('project_id', id);
+
+        const previousInvestorIds = (previousLinks || []).map((row: { investidor_id: string }) => row.investidor_id);
+        const previousInvestorUserIds: string[] = [];
+
+        if (previousInvestorIds.length > 0) {
+          const { data: previousUsersById } = await supabase
+            .from('user_management')
+            .select('id, user_id')
+            .in('id', previousInvestorIds)
+            .not('user_id', 'is', null);
+
+          const { data: previousUsersByUserId } = await supabase
+            .from('user_management')
+            .select('id, user_id')
+            .in('user_id', previousInvestorIds)
+            .not('user_id', 'is', null);
+
+          const mergedPrevious = [...(previousUsersById || []), ...(previousUsersByUserId || [])];
+          const uniquePreviousUserIds = new Set<string>();
+
+          mergedPrevious.forEach((row) => {
+            if (row?.user_id) uniquePreviousUserIds.add(row.user_id);
+          });
+
+          previousInvestorUserIds.push(...Array.from(uniquePreviousUserIds));
+        }
+
         // Delete existing investidores
         await supabase
           .from('project_investidores')
           .delete()
           .eq('project_id', id);
 
-        // Delete existing guest_project_access for investors of this project
-        // First get all investor user_ids that had access
-        const { data: oldInvestors } = await supabase
-          .from('guest_project_access')
-          .select('user_id')
-          .eq('project_id', id);
+        const normalizedInvestorRefs = (investidor_ids || []).filter(Boolean);
+
+        let nextInvestorUsers: Array<{ id: string; user_id: string }> = [];
+
+        if (normalizedInvestorRefs.length > 0) {
+          const { data: usersById } = await supabase
+            .from('user_management')
+            .select('id, user_id')
+            .in('id', normalizedInvestorRefs)
+            .not('user_id', 'is', null);
+
+          const { data: usersByUserId } = await supabase
+            .from('user_management')
+            .select('id, user_id')
+            .in('user_id', normalizedInvestorRefs)
+            .not('user_id', 'is', null);
+
+          const mergedNext = [...(usersById || []), ...(usersByUserId || [])];
+          const nextMap = new Map<string, { id: string; user_id: string }>();
+
+          mergedNext.forEach((row) => {
+            if (row?.id && row?.user_id) nextMap.set(row.id, { id: row.id, user_id: row.user_id });
+          });
+
+          nextInvestorUsers = Array.from(nextMap.values());
+        }
 
         // Insert new investidores
-        if (investidor_ids.length > 0) {
-          const investidorRecords = investidor_ids.map(investidor_id => ({
+        if (nextInvestorUsers.length > 0) {
+          const investidorRecords = nextInvestorUsers.map((inv) => ({
             project_id: id,
-            investidor_id,
+            investidor_id: inv.id,
           }));
 
           await supabase
@@ -454,48 +506,27 @@ export function useProjects() {
             .insert(investidorRecords);
 
           // Also update guest_project_access for new investors
-          const { data: investidorUsers } = await supabase
-            .from('user_management')
-            .select('id, user_id')
-            .in('id', investidor_ids)
-            .not('user_id', 'is', null);
+          const accessRecords = nextInvestorUsers.map((inv) => ({
+            project_id: id,
+            user_id: inv.user_id,
+            granted_by: currentUser?.id || '',
+          }));
 
-          if (investidorUsers && investidorUsers.length > 0) {
-            const accessRecords = investidorUsers.map(inv => ({
-              project_id: id,
-              user_id: inv.user_id,
-              granted_by: currentUser?.id || '',
-            }));
+          await supabase
+            .from('guest_project_access')
+            .upsert(accessRecords, { onConflict: 'user_id,project_id' });
+        }
 
-            await supabase
-              .from('guest_project_access')
-              .upsert(accessRecords, { onConflict: 'user_id,project_id' });
-          }
+        // Remove only access that belonged to previously-linked investors
+        const nextInvestorUserIds = nextInvestorUsers.map((u) => u.user_id);
+        const toRemove = previousInvestorUserIds.filter((uid) => !nextInvestorUserIds.includes(uid));
 
-          // Remove access for investors that were removed
-          if (oldInvestors && investidorUsers) {
-            const newUserIds = investidorUsers.map(u => u.user_id);
-            const toRemove = oldInvestors
-              .filter(old => !newUserIds.includes(old.user_id))
-              .map(old => old.user_id);
-
-            if (toRemove.length > 0) {
-              await supabase
-                .from('guest_project_access')
-                .delete()
-                .eq('project_id', id)
-                .in('user_id', toRemove);
-            }
-          }
-        } else {
-          // No investors selected - remove all guest access for this project's investors
-          if (oldInvestors && oldInvestors.length > 0) {
-            await supabase
-              .from('guest_project_access')
-              .delete()
-              .eq('project_id', id)
-              .in('user_id', oldInvestors.map(o => o.user_id));
-          }
+        if (toRemove.length > 0) {
+          await supabase
+            .from('guest_project_access')
+            .delete()
+            .eq('project_id', id)
+            .in('user_id', toRemove);
         }
       }
 
