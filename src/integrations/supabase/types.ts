@@ -3721,6 +3721,10 @@ export type Database = {
         Returns: boolean
       }
       is_master_user: { Args: { _user_id: string }; Returns: boolean }
+      is_project_owner: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       needs_password_change: { Args: { _user_id: string }; Returns: boolean }
       trigger_whatsapp_weekly_reports: { Args: never; Returns: undefined }
       user_has_project_access: {
