@@ -273,13 +273,13 @@ export default function Creatives() {
             </Select>
 
             <Select value={adSetFilter} onValueChange={handleFilterChange(setAdSetFilter)}>
-              <SelectTrigger className="w-full sm:w-[160px] text-xs sm:text-sm">
+              <SelectTrigger className="w-full sm:w-[200px] text-xs sm:text-sm">
                 <SelectValue placeholder="Conjunto" />
               </SelectTrigger>
-              <SelectContent className="bg-popover max-h-60">
+              <SelectContent className="bg-popover max-h-60 min-w-[300px] sm:min-w-[400px]">
                 <SelectItem value="all">Todos</SelectItem>
                 {filteredAdSets.map(adSet => <SelectItem key={adSet.id} value={adSet.id}>
-                  {adSet.name.length > 25 ? adSet.name.substring(0, 25) + '...' : adSet.name}
+                  <span className="block max-w-[360px] truncate" title={adSet.name}>{adSet.name}</span>
                 </SelectItem>)}
               </SelectContent>
             </Select>

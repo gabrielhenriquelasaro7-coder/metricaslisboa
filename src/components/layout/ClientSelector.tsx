@@ -117,7 +117,7 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
                         </span>
                       )}
                     </div>
-                    <span className="text-xs font-medium text-foreground truncate flex-1">{project.name}</span>
+                    <span className="text-xs font-medium text-foreground truncate flex-1 max-w-[240px]" title={project.name}>{project.name}</span>
                     {project.id === selectedProjectId && (
                       <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                     )}
