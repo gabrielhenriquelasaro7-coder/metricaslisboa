@@ -261,13 +261,13 @@ export default function Creatives() {
 
           <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3">
             <Select value={campaignFilter} onValueChange={handleCampaignChange}>
-              <SelectTrigger className="w-full sm:w-[160px] text-xs sm:text-sm">
+              <SelectTrigger className="w-full sm:w-[200px] text-xs sm:text-sm">
                 <SelectValue placeholder="Campanha" />
               </SelectTrigger>
-              <SelectContent className="bg-popover max-h-60">
+              <SelectContent className="bg-popover max-h-60 min-w-[300px] sm:min-w-[400px]">
                 <SelectItem value="all">Todas</SelectItem>
                 {campaigns.map(campaign => <SelectItem key={campaign.id} value={campaign.id}>
-                  {campaign.name.length > 25 ? campaign.name.substring(0, 25) + '...' : campaign.name}
+                  <span className="block max-w-[360px] truncate" title={campaign.name}>{campaign.name}</span>
                 </SelectItem>)}
               </SelectContent>
             </Select>
