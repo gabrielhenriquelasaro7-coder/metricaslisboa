@@ -155,7 +155,19 @@ export function useGoogleAdsData() {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
-  const selectedProjectId = localStorage.getItem('selectedProjectId');
+  // Reactive project selection - listens to project-selected event
+  const [reactiveProjectId, setReactiveProjectId] = useState(() => localStorage.getItem('selectedProjectId'));
+  
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setReactiveProjectId(detail?.projectId || localStorage.getItem('selectedProjectId'));
+    };
+    window.addEventListener('project-selected', handler);
+    return () => window.removeEventListener('project-selected', handler);
+  }, []);
+
+  const selectedProjectId = reactiveProjectId;
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
 
   const loadAllData = useCallback(async (projectId?: string) => {
