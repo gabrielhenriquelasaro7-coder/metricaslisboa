@@ -103,8 +103,20 @@ export function useMetaAdsData() {
   // Use ref to track loaded period without causing re-renders/recreations
   const lastLoadedPeriodRef = useRef<string | null>(null);
 
+  // Reactive project selection - listens to project-selected event
+  const [reactiveProjectId, setReactiveProjectId] = useState(() => localStorage.getItem('selectedProjectId'));
+  
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setReactiveProjectId(detail?.projectId || localStorage.getItem('selectedProjectId'));
+    };
+    window.addEventListener('project-selected', handler);
+    return () => window.removeEventListener('project-selected', handler);
+  }, []);
+
   // Get selected project from localStorage - with validation for guests
-  const selectedProjectId = localStorage.getItem('selectedProjectId');
+  const selectedProjectId = reactiveProjectId;
   const selectedProject = useMemo(() => {
     if (projectsLoading) return undefined;
     

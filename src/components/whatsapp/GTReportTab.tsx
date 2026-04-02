@@ -238,22 +238,28 @@ export function GTReportTab({
     fetchRealMetrics();
   }, [fetchRealMetrics]);
 
-  useEffect(() => {
-    if (instanceId && targetType === 'group') {
-      loadGroups();
-    }
-  }, [instanceId, targetType]);
-
-  const loadGroups = async () => {
+  const loadGroups = useCallback(async () => {
     if (!instanceId) return;
     setLoadingGroups(true);
     try {
       const groupList = await onListGroups(instanceId);
-      setGroups(groupList);
+      console.log('[GTReport] Groups loaded:', groupList?.length || 0);
+      setGroups(groupList || []);
+    } catch (err) {
+      console.error('[GTReport] Error loading groups:', err);
+      setGroups([]);
     } finally {
       setLoadingGroups(false);
     }
-  };
+  }, [instanceId, onListGroups]);
+
+  useEffect(() => {
+    if (instanceId && targetType === 'group') {
+      loadGroups();
+    } else if (targetType !== 'group') {
+      setGroups([]);
+    }
+  }, [instanceId, targetType, loadGroups]);
 
   const formatCurrency = (n: number) => `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatNumber = (n: number) => n.toLocaleString('pt-BR');

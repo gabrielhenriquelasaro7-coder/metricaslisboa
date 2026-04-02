@@ -277,22 +277,28 @@ export function AccountPlannerTab({
   }, [project.id]);
 
   // Load groups when instance changes
-  useEffect(() => {
-    if (instanceId && targetType === 'group') {
-      loadGroups();
-    }
-  }, [instanceId, targetType]);
-
-  const loadGroups = async () => {
+  const loadGroups = useCallback(async () => {
     if (!instanceId) return;
     setLoadingGroups(true);
     try {
       const groupList = await onListGroups(instanceId);
-      setGroups(groupList);
+      console.log('[AccountPlanner] Groups loaded:', groupList?.length || 0);
+      setGroups(groupList || []);
+    } catch (err) {
+      console.error('[AccountPlanner] Error loading groups:', err);
+      setGroups([]);
     } finally {
       setLoadingGroups(false);
     }
-  };
+  }, [instanceId, onListGroups]);
+
+  useEffect(() => {
+    if (instanceId && targetType === 'group') {
+      loadGroups();
+    } else if (targetType !== 'group') {
+      setGroups([]);
+    }
+  }, [instanceId, targetType, loadGroups]);
 
   const addSubMeta = () => {
     setSubMetas([...subMetas, { id: generateId(), text: '', completed: false }]);

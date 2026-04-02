@@ -77,7 +77,7 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
             )} />
           </button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-72 p-0 bg-popover border-border z-[60]">
+        <PopoverContent align="end" className="w-[340px] sm:w-[400px] p-0 bg-popover border-border z-[60]">
           <div className="p-2.5 border-b border-border">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -117,7 +117,7 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
                         </span>
                       )}
                     </div>
-                    <span className="text-xs font-medium text-foreground truncate flex-1">{project.name}</span>
+                    <span className="text-xs font-medium text-foreground truncate flex-1 max-w-[240px]" title={project.name}>{project.name}</span>
                     {project.id === selectedProjectId && (
                       <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                     )}
