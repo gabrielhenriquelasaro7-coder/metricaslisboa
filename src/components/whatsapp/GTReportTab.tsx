@@ -241,6 +241,8 @@ export function GTReportTab({
   useEffect(() => {
     if (instanceId && targetType === 'group') {
       loadGroups();
+    } else {
+      setGroups([]);
     }
   }, [instanceId, targetType]);
 
