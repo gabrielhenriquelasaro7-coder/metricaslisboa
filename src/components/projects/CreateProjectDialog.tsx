@@ -233,10 +233,11 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
       const investorIdToUpdate = selectedInvestorId || null;
 
       if (squadIdToUpdate || investorIdToUpdate) {
-        await supabase.from('projects').update({
+        const { error: updateError } = await supabase.from('projects').update({
           squad_id: squadIdToUpdate,
           investidor_id: investorIdToUpdate,
         }).eq('id', project.id);
+        if (updateError) console.error('Error updating project squad/investor:', updateError);
       }
 
       // Adicionar investidor na tabela project_investidores e guest_project_access
