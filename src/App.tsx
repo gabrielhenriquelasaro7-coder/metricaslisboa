@@ -41,6 +41,7 @@ import OptimizationHistory from "./pages/OptimizationHistory";
 import Suggestions from "./pages/Suggestions";
 import Financial from "./pages/Financial";
 import NotFound from "./pages/NotFound";
+import ResetPassword from "./pages/ResetPassword";
 import Clarity from "./pages/Clarity";
 import Instagram from "./pages/Instagram";
 import DiagnosticTOC from "./pages/DiagnosticTOC";
@@ -52,6 +53,7 @@ function AnimatedRoutes() {
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/auth" element={<Auth />} />
+      <Route path="/auth/reset-password" element={<ResetPassword />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/projects" element={<Navigate to="/dashboard" replace />} />
       <Route path="/project-setup/:projectId" element={<ProjectSetup />} />
