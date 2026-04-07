@@ -246,11 +246,11 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
         const selectedInvestor = investors.find(inv => inv.user_id === selectedInvestorId);
 
         if (selectedInvestor) {
-          // Insert into project_investidores using user_management.id
-          await supabase.from('project_investidores').insert({
+          const { error: invError } = await supabase.from('project_investidores').insert({
             project_id: project.id,
             investidor_id: selectedInvestor.id,
           });
+          if (invError) console.error('Error inserting project_investidores:', invError);
         }
 
         // CRITICAL: Add investor to guest_project_access so they can see the project
