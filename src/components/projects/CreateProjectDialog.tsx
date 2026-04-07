@@ -233,10 +233,11 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
       const investorIdToUpdate = selectedInvestorId || null;
 
       if (squadIdToUpdate || investorIdToUpdate) {
-        await supabase.from('projects').update({
+        const { error: updateError } = await supabase.from('projects').update({
           squad_id: squadIdToUpdate,
           investidor_id: investorIdToUpdate,
         }).eq('id', project.id);
+        if (updateError) console.error('Error updating project squad/investor:', updateError);
       }
 
       // Adicionar investidor na tabela project_investidores e guest_project_access
@@ -245,20 +246,21 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
         const selectedInvestor = investors.find(inv => inv.user_id === selectedInvestorId);
 
         if (selectedInvestor) {
-          // Insert into project_investidores using user_management.id
-          await supabase.from('project_investidores').insert({
+          const { error: invError } = await supabase.from('project_investidores').insert({
             project_id: project.id,
             investidor_id: selectedInvestor.id,
           });
+          if (invError) console.error('Error inserting project_investidores:', invError);
         }
 
         // CRITICAL: Add investor to guest_project_access so they can see the project
         const { data: { user: currentUser } } = await supabase.auth.getUser();
-        await supabase.from('guest_project_access').upsert({
+        const { error: accessError } = await supabase.from('guest_project_access').upsert({
           project_id: project.id,
-          user_id: selectedInvestorId, // auth user_id
+          user_id: selectedInvestorId,
           granted_by: currentUser?.id || '',
         }, { onConflict: 'user_id,project_id' });
+        if (accessError) console.error('Error inserting guest_project_access:', accessError);
       }
 
       if (formData.business_model === 'custom') {
@@ -297,6 +299,8 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
       setSelectedSquadId('');
       setSelectedInvestorId('');
       setCustomConfigOpen(false);
+    } catch (err: any) {
+      console.error('Error in project creation flow:', err);
     } finally {
       setIsLoading(false);
     }
