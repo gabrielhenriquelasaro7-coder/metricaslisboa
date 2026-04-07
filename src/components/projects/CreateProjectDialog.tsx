@@ -255,11 +255,12 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
 
         // CRITICAL: Add investor to guest_project_access so they can see the project
         const { data: { user: currentUser } } = await supabase.auth.getUser();
-        await supabase.from('guest_project_access').upsert({
+        const { error: accessError } = await supabase.from('guest_project_access').upsert({
           project_id: project.id,
-          user_id: selectedInvestorId, // auth user_id
+          user_id: selectedInvestorId,
           granted_by: currentUser?.id || '',
         }, { onConflict: 'user_id,project_id' });
+        if (accessError) console.error('Error inserting guest_project_access:', accessError);
       }
 
       if (formData.business_model === 'custom') {
