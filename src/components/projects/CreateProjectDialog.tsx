@@ -346,106 +346,15 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     }
   };
 
-  // Start import with selected mode - SMART PARALLEL PROCESSING (auto-adjusts based on account size)
-  const handleStartImport = async (mode: 'light' | 'full') => {
-    if (!pendingProjectId) return;
-
-    setSelectedImportMode(mode);
-    setShowImportProgress(true);
-    // Persist as selected project immediately
-    localStorage.setItem("selectedProjectId", pendingProjectId);
-
-    // Start the import with the selected mode
-    const startYear = 2025;
-    const lightSync = mode === 'light';
-
-    // Update project sync status
-    await supabase.from('projects').update({
-      sync_progress: {
-        status: 'importing',
-        progress: 0,
-        message: lightSync ? 'Iniciando Light Sync Inteligente...' : 'Iniciando Importação HD Inteligente...',
-        started_at: new Date().toISOString()
-      },
-    }).eq('id', pendingProjectId);
-
-    try {
-      // Build parallel sync promises
-      const syncPromises: Promise<any>[] = [];
-
-      // Meta Ads import (always runs)
-      syncPromises.push(
-        supabase.functions.invoke('import-month-by-month', {
-          body: {
-            project_id: pendingProjectId,
-            year: startYear,
-            month: 1,
-            continue_chain: true,
-            force_light_sync: lightSync,
-            safe_mode: true,
-          },
-        })
-      );
-
-      // Google Ads import (runs in parallel if google_customer_id is set)
-      if (formData.google_customer_id?.trim()) {
-        console.log(`[IMPORT] Starting Google Ads sync in parallel for project ${pendingProjectId}`);
-        syncPromises.push(
-          supabase.functions.invoke('google-ads-sync', {
-            body: {
-              projectId: pendingProjectId,
-              syncType: 'full',
-              days: 90,
-            },
-          })
-        );
-      }
-
-      const results = await Promise.all(syncPromises);
-
-      const metaResult = results[0];
-      if (metaResult.error) {
-        console.error('Error starting Meta import:', metaResult.error);
-      } else {
-        console.log(`[IMPORT] Started SMART Meta import for project ${pendingProjectId}`, metaResult.data);
-      }
-
-      if (results[1]) {
-        const googleResult = results[1];
-        if (googleResult.error || !googleResult.data?.success) {
-          console.error('Error starting Google import:', googleResult.error || googleResult.data?.error);
-        } else {
-          console.log(`[IMPORT] Google Ads imported: ${googleResult.data?.recordsCount || 0} records`);
-        }
-      }
-    } catch (error) {
-      console.error('Error starting import:', error);
-    }
-  };
-
-  const handleImportModeClose = () => {
-    if (pendingProjectId) {
-      localStorage.setItem("selectedProjectId", pendingProjectId);
-      window.dispatchEvent(new CustomEvent("project-selected", { detail: { projectId: pendingProjectId } }));
-      setShowImportModeDialog(false);
-      setPendingProjectId(null);
-      setPendingProjectName('');
-    }
-    onSuccess?.();
-  };
-
   const handleImportProgressCloseHandler = (openState: boolean) => {
     setShowImportProgress(openState);
     if (!openState) {
-      if (createdProjectId) {
-        localStorage.setItem("selectedProjectId", createdProjectId);
-        window.dispatchEvent(new CustomEvent("project-selected", { detail: { projectId: createdProjectId } }));
+      if (pendingProjectId) {
+        localStorage.setItem("selectedProjectId", pendingProjectId);
+        window.dispatchEvent(new CustomEvent("project-selected", { detail: { projectId: pendingProjectId } }));
       }
-      setCreatedProjectId(null);
-      setCreatedProjectName('');
       setPendingProjectId(null);
       setPendingProjectName('');
-      setSelectedImportMode(null);
       onSuccess?.();
     }
   };
