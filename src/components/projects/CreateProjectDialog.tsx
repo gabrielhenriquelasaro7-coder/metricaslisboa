@@ -15,7 +15,6 @@ import { METRIC_TEMPLATES } from '@/hooks/useProjectMetricConfig';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSquads } from '@/hooks/useSquads';
-import { useSquads } from '@/hooks/useSquads';
 import { useCargo } from '@/hooks/useCargo';
 
 interface Coordinator {
