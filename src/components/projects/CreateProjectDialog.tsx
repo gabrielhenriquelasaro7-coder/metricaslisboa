@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects, BusinessModel, CreateProjectData } from '@/hooks/useProjects';
-import { Plus, Loader2, Settings2, Users, ShoppingCart, Store, GraduationCap, Zap, Image, Clock, Sparkles } from 'lucide-react';
+import { Plus, Loader2, Settings2, Users, ShoppingCart, Store, GraduationCap } from 'lucide-react';
 import { z } from 'zod';
 import { ImportProgressDialog } from './ImportProgressDialog';
 import { MetricConfigPanel, type MetricConfigData } from './MetricConfigPanel';
