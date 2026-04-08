@@ -169,11 +169,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     }
   };
 
-  // Import mode selection step
-  const [showImportModeDialog, setShowImportModeDialog] = useState(false);
-  const [selectedImportMode, setSelectedImportMode] = useState<'light' | 'full' | null>(null);
-  const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
-  const [pendingProjectName, setPendingProjectName] = useState('');
+  const [showImportProgress, setShowImportProgress] = useState(false);
 
   const [showImportProgress, setShowImportProgress] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
