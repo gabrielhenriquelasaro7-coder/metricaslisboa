@@ -169,11 +169,9 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     }
   };
 
+  const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
+  const [pendingProjectName, setPendingProjectName] = useState('');
   const [showImportProgress, setShowImportProgress] = useState(false);
-
-  const [showImportProgress, setShowImportProgress] = useState(false);
-  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
-  const [createdProjectName, setCreatedProjectName] = useState('');
 
   const [formData, setFormData] = useState<CreateProjectData & { google_customer_id?: string }>({
     name: '',
