@@ -280,11 +280,57 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
         });
       }
 
-      // Close the create dialog and show import mode selection
+      // Close the create dialog and go directly to month-by-month import
       setOpen(false);
       setPendingProjectId(project.id);
       setPendingProjectName(formData.name);
-      setShowImportModeDialog(true);
+      
+      // Auto-start light sync and show import progress directly
+      setShowImportProgress(true);
+      localStorage.setItem("selectedProjectId", project.id);
+
+      // Start light sync automatically
+      await supabase.from('projects').update({
+        sync_progress: {
+          status: 'importing',
+          progress: 0,
+          message: 'Iniciando importação mês a mês...',
+          started_at: new Date().toISOString()
+        },
+      }).eq('id', project.id);
+
+      // Start Meta Ads import
+      const syncPromises: Promise<any>[] = [];
+      syncPromises.push(
+        supabase.functions.invoke('import-month-by-month', {
+          body: {
+            project_id: project.id,
+            year: 2025,
+            month: 1,
+            continue_chain: true,
+            force_light_sync: true,
+            safe_mode: true,
+          },
+        })
+      );
+
+      // Google Ads import in parallel if configured
+      if (formData.google_customer_id?.trim()) {
+        syncPromises.push(
+          supabase.functions.invoke('google-ads-sync', {
+            body: {
+              projectId: project.id,
+              syncType: 'full',
+              days: 90,
+            },
+          })
+        );
+      }
+
+      Promise.all(syncPromises).then(results => {
+        if (results[0]?.error) console.error('Error starting Meta import:', results[0].error);
+        if (results[1]?.error) console.error('Error starting Google import:', results[1].error);
+      });
 
       // Reset form
       setFormData({
