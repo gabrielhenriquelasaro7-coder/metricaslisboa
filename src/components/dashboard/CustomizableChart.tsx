@@ -22,10 +22,15 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart2, LineChart, TrendingUp, Settings2, Pencil, Circle, Maximize2, X } from 'lucide-react';
+import { BarChart2, LineChart, TrendingUp, Settings2, Pencil, Circle, Maximize2, X, Filter } from 'lucide-react';
 import { ChartCustomizationDialog } from './ChartCustomizationDialog';
 import { useChartPreferences, ChartPreference } from '@/hooks/useChartPreferences';
 import { useChartResponsive } from '@/hooks/useChartResponsive';
+import { supabase } from '@/integrations/supabase/client';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 
 type ChartType = 'line' | 'bar' | 'composed' | 'scatter';
 
@@ -34,6 +39,11 @@ interface MetricOption {
   label: string;
   format: (v: number) => string;
   color: string;
+}
+
+interface CampaignOption {
+  id: string;
+  name: string;
 }
 
 interface CustomizableChartProps {
@@ -45,6 +55,7 @@ interface CustomizableChartProps {
   defaultChartType?: ChartType;
   className?: string;
   currency?: string;
+  projectId?: string;
 }
 
 const formatNumber = (value: number) => {
