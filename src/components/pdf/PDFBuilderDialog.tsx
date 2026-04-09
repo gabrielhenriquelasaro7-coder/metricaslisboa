@@ -106,8 +106,8 @@ const CHART_METRICS: MetricDef[] = [
   { key: 'ctr', label: 'CTR', type: 'percent' },
   { key: 'cpm', label: 'CPM', type: 'currency' },
   { key: 'cpc', label: 'CPC', type: 'currency' },
+  { key: 'cpa', label: 'CPL/CPA', type: 'currency' },
   { key: 'roas', label: 'ROAS', type: 'decimal' },
-  { key: 'cpa', label: 'CPA', type: 'currency' },
 ];
 
 const TEMPLATES = [
