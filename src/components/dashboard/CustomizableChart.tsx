@@ -332,15 +332,15 @@ export function CustomizableChart({
 
   // Determine if we should aggregate by month (more than 60 data points)
   const shouldAggregateByMonth = useMemo(() => {
-    if (data.length === 0) return false;
-    if (data.length > 60) return true;
+    if (activeData.length === 0) return false;
+    if (activeData.length > 60) return true;
     
     // Also check actual date span
-    const firstDate = new Date(data[0].date);
-    const lastDate = new Date(data[data.length - 1].date);
+    const firstDate = new Date(activeData[0].date);
+    const lastDate = new Date(activeData[activeData.length - 1].date);
     const daysDiff = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
     return daysDiff > 60;
-  }, [data]);
+  }, [activeData]);
 
   const chartData = useMemo(() => {
     const processedData = shouldAggregateByMonth ? aggregateByMonth(data) : data;
