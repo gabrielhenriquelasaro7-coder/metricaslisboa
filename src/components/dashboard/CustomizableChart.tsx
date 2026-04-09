@@ -775,7 +775,7 @@ export function CustomizableChart({
           </div>
         </div>
         <div className="h-[280px]">
-          {data.length === 0 ? (
+          {activeData.length === 0 ? (
             <div className="h-full flex items-center justify-center text-muted-foreground">
               Sem dados para o período selecionado
             </div>
