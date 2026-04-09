@@ -646,6 +646,7 @@ export default function Dashboard() {
                         defaultChartType="composed"
                         currency={selectedProject?.currency || 'BRL'}
                         className="chart-container-mobile"
+                        projectId={selectedProject?.id}
                       />
                       <CustomizableChart
                         chartKey="home-chart-2"
@@ -656,6 +657,7 @@ export default function Dashboard() {
                         defaultChartType="line"
                         currency={selectedProject?.currency || 'BRL'}
                         className="chart-container-mobile"
+                        projectId={selectedProject?.id}
                       />
                     </div>
                   </div>
