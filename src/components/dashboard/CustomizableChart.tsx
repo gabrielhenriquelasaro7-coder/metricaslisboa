@@ -22,10 +22,15 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart2, LineChart, TrendingUp, Settings2, Pencil, Circle, Maximize2, X } from 'lucide-react';
+import { BarChart2, LineChart, TrendingUp, Settings2, Pencil, Circle, Maximize2, X, Filter } from 'lucide-react';
 import { ChartCustomizationDialog } from './ChartCustomizationDialog';
 import { useChartPreferences, ChartPreference } from '@/hooks/useChartPreferences';
 import { useChartResponsive } from '@/hooks/useChartResponsive';
+import { supabase } from '@/integrations/supabase/client';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 
 type ChartType = 'line' | 'bar' | 'composed' | 'scatter';
 
@@ -34,6 +39,11 @@ interface MetricOption {
   label: string;
   format: (v: number) => string;
   color: string;
+}
+
+interface CampaignOption {
+  id: string;
+  name: string;
 }
 
 interface CustomizableChartProps {
@@ -45,6 +55,7 @@ interface CustomizableChartProps {
   defaultChartType?: ChartType;
   className?: string;
   currency?: string;
+  projectId?: string;
 }
 
 const formatNumber = (value: number) => {
@@ -146,10 +157,146 @@ export function CustomizableChart({
   defaultChartType = 'composed',
   className,
   currency = 'BRL',
+  projectId,
 }: CustomizableChartProps) {
   const DEFAULT_METRIC_OPTIONS = useMemo(() => createMetricOptions(currency), [currency]);
   const { getPreference, savePreference, isLoading: prefsLoading } = useChartPreferences();
   const savedPref = getPreference(chartKey);
+
+  // Campaign filter state
+  const [availableCampaigns, setAvailableCampaigns] = useState<CampaignOption[]>([]);
+  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
+  const [filteredData, setFilteredData] = useState<DailyMetric[] | null>(null);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+  const [campaignFilterOpen, setCampaignFilterOpen] = useState(false);
+
+  // Load available campaigns when projectId is provided
+  useEffect(() => {
+    if (!projectId) return;
+    const loadCampaigns = async () => {
+      // Query distinct campaigns from ads_daily_metrics
+      const { data: metaCampaigns } = await supabase
+        .from('ads_daily_metrics')
+        .select('campaign_id, campaign_name')
+        .eq('project_id', projectId)
+        .order('campaign_name');
+
+      const { data: googleCampaigns } = await supabase
+        .from('google_ads_daily_metrics')
+        .select('campaign_id, campaign_name')
+        .eq('project_id', projectId)
+        .order('campaign_name');
+
+      const campaignMap = new Map<string, string>();
+      metaCampaigns?.forEach(c => campaignMap.set(c.campaign_id, c.campaign_name));
+      googleCampaigns?.forEach(c => campaignMap.set(c.campaign_id, c.campaign_name));
+      
+      const unique = Array.from(campaignMap.entries()).map(([id, name]) => ({ id, name }));
+      unique.sort((a, b) => a.name.localeCompare(b.name));
+      setAvailableCampaigns(unique);
+    };
+    loadCampaigns();
+  }, [projectId]);
+
+  // Fetch filtered data when campaigns are selected
+  useEffect(() => {
+    if (selectedCampaigns.length === 0) {
+      setFilteredData(null);
+      return;
+    }
+    if (!projectId) return;
+
+    const fetchFiltered = async () => {
+      setLoadingCampaigns(true);
+      
+      // Get date range from current data
+      if (data.length === 0) { setLoadingCampaigns(false); return; }
+      const minDate = data[0].date;
+      const maxDate = data[data.length - 1].date;
+
+      // Query Meta
+      const { data: metaRows } = await supabase
+        .from('ads_daily_metrics')
+        .select('date, spend, impressions, clicks, reach, conversions, conversion_value, messaging_replies, profile_visits')
+        .eq('project_id', projectId)
+        .in('campaign_id', selectedCampaigns)
+        .gte('date', minDate)
+        .lte('date', maxDate);
+
+      // Query Google
+      const { data: googleRows } = await supabase
+        .from('google_ads_daily_metrics')
+        .select('date, spend, impressions, clicks, conversions, conversion_value')
+        .eq('project_id', projectId)
+        .in('campaign_id', selectedCampaigns)
+        .gte('date', minDate)
+        .lte('date', maxDate);
+
+      // Aggregate by date
+      const dateMap = new Map<string, DailyMetric>();
+      
+      const addRow = (row: any) => {
+        const existing = dateMap.get(row.date);
+        if (existing) {
+          existing.spend += row.spend || 0;
+          existing.impressions += row.impressions || 0;
+          existing.clicks += row.clicks || 0;
+          existing.reach += row.reach || 0;
+          existing.conversions += row.conversions || 0;
+          existing.conversion_value += row.conversion_value || 0;
+        } else {
+          dateMap.set(row.date, {
+            date: row.date,
+            spend: row.spend || 0,
+            impressions: row.impressions || 0,
+            clicks: row.clicks || 0,
+            reach: row.reach || 0,
+            conversions: row.conversions || 0,
+            conversion_value: row.conversion_value || 0,
+            messaging_replies: row.messaging_replies || 0,
+            profile_visits: row.profile_visits || 0,
+            leads_conversions: 0,
+            sales_conversions: 0,
+            initiate_checkout_conversions: 0,
+            ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0, cvr_leads: 0, cvr_sales: 0,
+          });
+        }
+      };
+
+      metaRows?.forEach(addRow);
+      googleRows?.forEach(addRow);
+
+      // Recalculate derived metrics
+      const result = Array.from(dateMap.values()).map(m => ({
+        ...m,
+        ctr: m.impressions > 0 ? (m.clicks / m.impressions) * 100 : 0,
+        cpm: m.impressions > 0 ? (m.spend / m.impressions) * 1000 : 0,
+        cpc: m.clicks > 0 ? m.spend / m.clicks : 0,
+        roas: m.spend > 0 ? m.conversion_value / m.spend : 0,
+        cpa: m.conversions > 0 ? m.spend / m.conversions : 0,
+      })).sort((a, b) => a.date.localeCompare(b.date));
+
+      setFilteredData(result);
+      setLoadingCampaigns(false);
+    };
+
+    fetchFiltered();
+  }, [selectedCampaigns, projectId, data]);
+
+  const toggleCampaign = useCallback((campaignId: string) => {
+    setSelectedCampaigns(prev => 
+      prev.includes(campaignId) 
+        ? prev.filter(id => id !== campaignId)
+        : [...prev, campaignId]
+    );
+  }, []);
+
+  const clearCampaignFilter = useCallback(() => {
+    setSelectedCampaigns([]);
+  }, []);
+
+  // Use filtered data if campaigns are selected, otherwise use original data
+  const activeData = filteredData || data;
 
   const [chartType, setChartType] = useState<ChartType>(
     (savedPref?.chart_type as ChartType) || defaultChartType
@@ -185,18 +332,18 @@ export function CustomizableChart({
 
   // Determine if we should aggregate by month (more than 60 data points)
   const shouldAggregateByMonth = useMemo(() => {
-    if (data.length === 0) return false;
-    if (data.length > 60) return true;
+    if (activeData.length === 0) return false;
+    if (activeData.length > 60) return true;
     
     // Also check actual date span
-    const firstDate = new Date(data[0].date);
-    const lastDate = new Date(data[data.length - 1].date);
+    const firstDate = new Date(activeData[0].date);
+    const lastDate = new Date(activeData[activeData.length - 1].date);
     const daysDiff = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
     return daysDiff > 60;
-  }, [data]);
+  }, [activeData]);
 
   const chartData = useMemo(() => {
-    const processedData = shouldAggregateByMonth ? aggregateByMonth(data) : data;
+    const processedData = shouldAggregateByMonth ? aggregateByMonth(activeData) : activeData;
     
     return processedData.map(d => {
       // For monthly data, the date is in 'yyyy-MM' format
@@ -222,7 +369,7 @@ export function CustomizableChart({
         frequency: d.reach > 0 ? d.impressions / d.reach : 0,
       };
     });
-  }, [data, shouldAggregateByMonth]);
+  }, [activeData, shouldAggregateByMonth]);
 
   const getMetric = useCallback((key: string) => {
     return DEFAULT_METRIC_OPTIONS.find(m => m.key === key) || DEFAULT_METRIC_OPTIONS[0];
@@ -546,6 +693,60 @@ export function CustomizableChart({
             >
               <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
             </Button>
+            {/* Campaign Filter */}
+            {projectId && availableCampaigns.length > 0 && (
+              <Popover open={campaignFilterOpen} onOpenChange={setCampaignFilterOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={selectedCampaigns.length > 0 ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-7 gap-1 px-2 text-xs"
+                    title="Filtrar por campanha"
+                  >
+                    <Filter className="w-3 h-3" />
+                    {selectedCampaigns.length > 0 && (
+                      <span>{selectedCampaigns.length}</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" align="start">
+                  <div className="p-3 border-b border-border">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">Filtrar Campanhas</p>
+                      {selectedCampaigns.length > 0 && (
+                        <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={clearCampaignFilter}>
+                          Limpar
+                        </Button>
+                      )}
+                    </div>
+                    {selectedCampaigns.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {selectedCampaigns.length} campanha(s) selecionada(s)
+                      </p>
+                    )}
+                  </div>
+                  <ScrollArea className="max-h-[250px]">
+                    <div className="p-2 space-y-1">
+                      {availableCampaigns.map(campaign => (
+                        <label
+                          key={campaign.id}
+                          className="flex items-center gap-2 p-2 rounded-md hover:bg-secondary/50 cursor-pointer text-xs"
+                        >
+                          <Checkbox
+                            checked={selectedCampaigns.includes(campaign.id)}
+                            onCheckedChange={() => toggleCampaign(campaign.id)}
+                          />
+                          <span className="truncate">{campaign.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </PopoverContent>
+              </Popover>
+            )}
+            {selectedCampaigns.length > 0 && loadingCampaigns && (
+              <span className="text-xs text-muted-foreground animate-pulse">Carregando...</span>
+            )}
           </div>
           <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2">
             <MetricSelector 
@@ -574,7 +775,7 @@ export function CustomizableChart({
           </div>
         </div>
         <div className="h-[280px]">
-          {data.length === 0 ? (
+          {activeData.length === 0 ? (
             <div className="h-full flex items-center justify-center text-muted-foreground">
               Sem dados para o período selecionado
             </div>

@@ -580,10 +580,10 @@ export default function MetaAds() {
                 {/* Charts */}
                 <div className="mt-8 sm:mt-10 space-y-5 sm:space-y-6">
                   <div ref={chartRef}>
-                    <CustomizableChart chartKey="dashboard-chart-1" data={dailyData} defaultTitle="Gráfico 1 - Performance" defaultPrimaryMetric="spend" defaultSecondaryMetric="conversions" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" />
+                    <CustomizableChart chartKey="dashboard-chart-1" data={dailyData} defaultTitle="Gráfico 1 - Performance" defaultPrimaryMetric="spend" defaultSecondaryMetric="conversions" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" projectId={selectedProject?.id} />
                   </div>
-                  <CustomizableChart chartKey="dashboard-chart-2" data={dailyData} defaultTitle="Gráfico 2 - Alcance" defaultPrimaryMetric="impressions" defaultSecondaryMetric="ctr" defaultChartType="line" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" />
-                  <CustomizableChart chartKey="dashboard-chart-3" data={dailyData} defaultTitle="Gráfico 3 - Custo" defaultPrimaryMetric="cpc" defaultSecondaryMetric="clicks" defaultChartType="bar" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" />
+                  <CustomizableChart chartKey="dashboard-chart-2" data={dailyData} defaultTitle="Gráfico 2 - Alcance" defaultPrimaryMetric="impressions" defaultSecondaryMetric="ctr" defaultChartType="line" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" projectId={selectedProject?.id} />
+                  <CustomizableChart chartKey="dashboard-chart-3" data={dailyData} defaultTitle="Gráfico 3 - Custo" defaultPrimaryMetric="cpc" defaultSecondaryMetric="clicks" defaultChartType="bar" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" projectId={selectedProject?.id} />
                 </div>
 
                 {/* Funnel */}
