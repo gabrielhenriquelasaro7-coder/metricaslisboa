@@ -770,9 +770,9 @@ export default function GoogleCampaigns() {
                 {/* 3 Gráficos */}
                 {chartData.length > 0 && (
                   <div className="space-y-4 sm:space-y-6">
-                    <CustomizableChart chartKey="google_invest_clicks" data={chartData} defaultTitle="Investimento vs Cliques" defaultPrimaryMetric="spend" defaultSecondaryMetric="clicks" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} />
-                    <CustomizableChart chartKey="google_conv_cpa" data={chartData} defaultTitle="Conversões vs CPA" defaultPrimaryMetric="conversions" defaultSecondaryMetric="cpa" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} />
-                    <CustomizableChart chartKey="google_ctr_cpc" data={chartData} defaultTitle="CTR vs CPC" defaultPrimaryMetric="ctr" defaultSecondaryMetric="cpc" defaultChartType="line" currency={selectedProject?.currency || 'BRL'} />
+                    <CustomizableChart chartKey="google_invest_clicks" data={chartData} defaultTitle="Investimento vs Cliques" defaultPrimaryMetric="spend" defaultSecondaryMetric="clicks" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} projectId={selectedProject?.id} />
+                    <CustomizableChart chartKey="google_conv_cpa" data={chartData} defaultTitle="Conversões vs CPA" defaultPrimaryMetric="conversions" defaultSecondaryMetric="cpa" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} projectId={selectedProject?.id} />
+                    <CustomizableChart chartKey="google_ctr_cpc" data={chartData} defaultTitle="CTR vs CPC" defaultPrimaryMetric="ctr" defaultSecondaryMetric="cpc" defaultChartType="line" currency={selectedProject?.currency || 'BRL'} projectId={selectedProject?.id} />
                   </div>
                 )}
 
