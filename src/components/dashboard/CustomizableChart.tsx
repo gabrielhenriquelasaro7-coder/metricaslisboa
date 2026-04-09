@@ -693,6 +693,60 @@ export function CustomizableChart({
             >
               <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
             </Button>
+            {/* Campaign Filter */}
+            {projectId && availableCampaigns.length > 0 && (
+              <Popover open={campaignFilterOpen} onOpenChange={setCampaignFilterOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={selectedCampaigns.length > 0 ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-7 gap-1 px-2 text-xs"
+                    title="Filtrar por campanha"
+                  >
+                    <Filter className="w-3 h-3" />
+                    {selectedCampaigns.length > 0 && (
+                      <span>{selectedCampaigns.length}</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" align="start">
+                  <div className="p-3 border-b border-border">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">Filtrar Campanhas</p>
+                      {selectedCampaigns.length > 0 && (
+                        <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={clearCampaignFilter}>
+                          Limpar
+                        </Button>
+                      )}
+                    </div>
+                    {selectedCampaigns.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {selectedCampaigns.length} campanha(s) selecionada(s)
+                      </p>
+                    )}
+                  </div>
+                  <ScrollArea className="max-h-[250px]">
+                    <div className="p-2 space-y-1">
+                      {availableCampaigns.map(campaign => (
+                        <label
+                          key={campaign.id}
+                          className="flex items-center gap-2 p-2 rounded-md hover:bg-secondary/50 cursor-pointer text-xs"
+                        >
+                          <Checkbox
+                            checked={selectedCampaigns.includes(campaign.id)}
+                            onCheckedChange={() => toggleCampaign(campaign.id)}
+                          />
+                          <span className="truncate">{campaign.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </PopoverContent>
+              </Popover>
+            )}
+            {selectedCampaigns.length > 0 && loadingCampaigns && (
+              <span className="text-xs text-muted-foreground animate-pulse">Carregando...</span>
+            )}
           </div>
           <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2">
             <MetricSelector 
