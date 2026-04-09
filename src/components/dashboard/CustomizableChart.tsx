@@ -343,7 +343,7 @@ export function CustomizableChart({
   }, [activeData]);
 
   const chartData = useMemo(() => {
-    const processedData = shouldAggregateByMonth ? aggregateByMonth(data) : data;
+    const processedData = shouldAggregateByMonth ? aggregateByMonth(activeData) : activeData;
     
     return processedData.map(d => {
       // For monthly data, the date is in 'yyyy-MM' format
@@ -369,7 +369,7 @@ export function CustomizableChart({
         frequency: d.reach > 0 ? d.impressions / d.reach : 0,
       };
     });
-  }, [data, shouldAggregateByMonth]);
+  }, [activeData, shouldAggregateByMonth]);
 
   const getMetric = useCallback((key: string) => {
     return DEFAULT_METRIC_OPTIONS.find(m => m.key === key) || DEFAULT_METRIC_OPTIONS[0];
