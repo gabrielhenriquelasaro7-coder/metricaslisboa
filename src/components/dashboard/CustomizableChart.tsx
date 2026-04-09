@@ -157,10 +157,146 @@ export function CustomizableChart({
   defaultChartType = 'composed',
   className,
   currency = 'BRL',
+  projectId,
 }: CustomizableChartProps) {
   const DEFAULT_METRIC_OPTIONS = useMemo(() => createMetricOptions(currency), [currency]);
   const { getPreference, savePreference, isLoading: prefsLoading } = useChartPreferences();
   const savedPref = getPreference(chartKey);
+
+  // Campaign filter state
+  const [availableCampaigns, setAvailableCampaigns] = useState<CampaignOption[]>([]);
+  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
+  const [filteredData, setFilteredData] = useState<DailyMetric[] | null>(null);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+  const [campaignFilterOpen, setCampaignFilterOpen] = useState(false);
+
+  // Load available campaigns when projectId is provided
+  useEffect(() => {
+    if (!projectId) return;
+    const loadCampaigns = async () => {
+      // Query distinct campaigns from ads_daily_metrics
+      const { data: metaCampaigns } = await supabase
+        .from('ads_daily_metrics')
+        .select('campaign_id, campaign_name')
+        .eq('project_id', projectId)
+        .order('campaign_name');
+
+      const { data: googleCampaigns } = await supabase
+        .from('google_ads_daily_metrics')
+        .select('campaign_id, campaign_name')
+        .eq('project_id', projectId)
+        .order('campaign_name');
+
+      const campaignMap = new Map<string, string>();
+      metaCampaigns?.forEach(c => campaignMap.set(c.campaign_id, c.campaign_name));
+      googleCampaigns?.forEach(c => campaignMap.set(c.campaign_id, c.campaign_name));
+      
+      const unique = Array.from(campaignMap.entries()).map(([id, name]) => ({ id, name }));
+      unique.sort((a, b) => a.name.localeCompare(b.name));
+      setAvailableCampaigns(unique);
+    };
+    loadCampaigns();
+  }, [projectId]);
+
+  // Fetch filtered data when campaigns are selected
+  useEffect(() => {
+    if (selectedCampaigns.length === 0) {
+      setFilteredData(null);
+      return;
+    }
+    if (!projectId) return;
+
+    const fetchFiltered = async () => {
+      setLoadingCampaigns(true);
+      
+      // Get date range from current data
+      if (data.length === 0) { setLoadingCampaigns(false); return; }
+      const minDate = data[0].date;
+      const maxDate = data[data.length - 1].date;
+
+      // Query Meta
+      const { data: metaRows } = await supabase
+        .from('ads_daily_metrics')
+        .select('date, spend, impressions, clicks, reach, conversions, conversion_value, messaging_replies, profile_visits')
+        .eq('project_id', projectId)
+        .in('campaign_id', selectedCampaigns)
+        .gte('date', minDate)
+        .lte('date', maxDate);
+
+      // Query Google
+      const { data: googleRows } = await supabase
+        .from('google_ads_daily_metrics')
+        .select('date, spend, impressions, clicks, conversions, conversion_value')
+        .eq('project_id', projectId)
+        .in('campaign_id', selectedCampaigns)
+        .gte('date', minDate)
+        .lte('date', maxDate);
+
+      // Aggregate by date
+      const dateMap = new Map<string, DailyMetric>();
+      
+      const addRow = (row: any) => {
+        const existing = dateMap.get(row.date);
+        if (existing) {
+          existing.spend += row.spend || 0;
+          existing.impressions += row.impressions || 0;
+          existing.clicks += row.clicks || 0;
+          existing.reach += row.reach || 0;
+          existing.conversions += row.conversions || 0;
+          existing.conversion_value += row.conversion_value || 0;
+        } else {
+          dateMap.set(row.date, {
+            date: row.date,
+            spend: row.spend || 0,
+            impressions: row.impressions || 0,
+            clicks: row.clicks || 0,
+            reach: row.reach || 0,
+            conversions: row.conversions || 0,
+            conversion_value: row.conversion_value || 0,
+            messaging_replies: row.messaging_replies || 0,
+            profile_visits: row.profile_visits || 0,
+            leads_conversions: 0,
+            sales_conversions: 0,
+            initiate_checkout_conversions: 0,
+            ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0, cvr_leads: 0, cvr_sales: 0,
+          });
+        }
+      };
+
+      metaRows?.forEach(addRow);
+      googleRows?.forEach(addRow);
+
+      // Recalculate derived metrics
+      const result = Array.from(dateMap.values()).map(m => ({
+        ...m,
+        ctr: m.impressions > 0 ? (m.clicks / m.impressions) * 100 : 0,
+        cpm: m.impressions > 0 ? (m.spend / m.impressions) * 1000 : 0,
+        cpc: m.clicks > 0 ? m.spend / m.clicks : 0,
+        roas: m.spend > 0 ? m.conversion_value / m.spend : 0,
+        cpa: m.conversions > 0 ? m.spend / m.conversions : 0,
+      })).sort((a, b) => a.date.localeCompare(b.date));
+
+      setFilteredData(result);
+      setLoadingCampaigns(false);
+    };
+
+    fetchFiltered();
+  }, [selectedCampaigns, projectId, data]);
+
+  const toggleCampaign = useCallback((campaignId: string) => {
+    setSelectedCampaigns(prev => 
+      prev.includes(campaignId) 
+        ? prev.filter(id => id !== campaignId)
+        : [...prev, campaignId]
+    );
+  }, []);
+
+  const clearCampaignFilter = useCallback(() => {
+    setSelectedCampaigns([]);
+  }, []);
+
+  // Use filtered data if campaigns are selected, otherwise use original data
+  const activeData = filteredData || data;
 
   const [chartType, setChartType] = useState<ChartType>(
     (savedPref?.chart_type as ChartType) || defaultChartType
