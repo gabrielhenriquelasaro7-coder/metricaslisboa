@@ -438,32 +438,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               </TooltipProvider>
             )}
 
-            {/* Análise Preditiva - Hidden for guests, DISABLED - waiting for Gemini API */}
-            {!roleLoading && !isGuest && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div
-                      className={cn(
-                        'sidebar-item opacity-50 cursor-not-allowed',
-                        location.pathname === '/predictive-analysis' && 'active'
-                      )}
-                    >
-                      <TrendingUp className="w-5 h-5 flex-shrink-0" />
-                      {!collapsed && (
-                        <div className="flex items-center gap-2">
-                          <span>{t('sidebar.predictiveAnalysis')}</span>
-                          <Lock className="w-3 h-3 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="bg-popover border-border">
-                    <p>{t('sidebar.maintenanceMessage')}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
+
 
             {/* Histórico de Otimizações - respects tab visibility */}
             {selectedProject && !isTabHidden('suggestions') && (

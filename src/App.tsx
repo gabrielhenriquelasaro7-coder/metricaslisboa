@@ -78,7 +78,7 @@ function AnimatedRoutes() {
       <Route path="/change-password" element={<ChangePassword />} />
       <Route path="/guest-onboarding" element={<GuestOnboarding />} />
       <Route path="/google-campaigns" element={<GoogleCampaigns />} />
-      <Route path="/predictive-analysis" element={<PredictiveAnalysis />} />
+      {/* Predictive analysis disabled */}
       <Route path="/optimization-history" element={<OptimizationHistory />} />
       <Route path="/suggestions" element={<Suggestions />} />
       <Route path="/financeiro" element={<Financial />} />
