@@ -6,11 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Default password for all new users
-const DEFAULT_PASSWORD = '12345678';
-
 function generateTempPassword(): string {
-  return DEFAULT_PASSWORD;
+  const arr = new Uint8Array(16);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, b => b.toString(36).padStart(2, '0')).join('').slice(0, 16);
 }
 
 // Use Web Crypto API instead of bcrypt (compatible with Edge Runtime)
