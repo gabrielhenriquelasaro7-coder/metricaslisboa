@@ -317,31 +317,16 @@ export default function DiagnosticTOC() {
             </div>
 
             {/* Stats Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="p-4 bg-black/60 border border-white/5 rounded-xl flex flex-col gap-1">
                 <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Total Analisado</span>
                 <span className="text-2xl font-black text-white tracking-tighter">{projects.length} <span className="text-xs text-zinc-700 font-bold uppercase">Projetos</span></span>
-              </div>
-              <div className="p-4 bg-black/60 border border-white/5 rounded-xl flex flex-col gap-1">
-                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Restrição Principal</span>
-                <span className="text-sm font-black text-red-500 uppercase italic">
-                  {projects.length > 0 ? 'Exposição (07)' : '—'}
-                </span>
               </div>
               <div className="p-4 bg-black/60 border border-white/5 rounded-xl flex flex-col gap-1">
                 <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Completos</span>
                 <span className="text-2xl font-black text-emerald-500 tracking-tighter">
                   {projects.filter(p => p.status === 'completo').length}
                 </span>
-              </div>
-              <div className="p-4 bg-red-600/5 border border-red-600/10 rounded-xl flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-red-500">
-                  <AlertTriangle className="w-3 h-3" />
-                  <span className="text-[9px] font-black uppercase tracking-widest">Alerta de Throughput</span>
-                </div>
-                <p className="text-[9px] text-zinc-500 font-medium leading-relaxed italic">
-                  "Aumentar a verba sem resolver a restrição apenas aumenta o custo de aquisição."
-                </p>
               </div>
             </div>
 

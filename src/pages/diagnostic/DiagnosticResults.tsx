@@ -754,13 +754,6 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
                                     <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Arraste os sliders para simular cenários · Tudo está linkado</p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="outline"
-                                        className="h-9 rounded-xl border-white/10 bg-black/50 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-white/5"
-                                        onClick={() => window.open(window.location.href.includes('localhost') ? '/diagnostico/benchmarks' : '#', '_blank')}
-                                    >
-                                        Ajustar Benchmarks
-                                    </Button>
                                     <Badge variant="outline" className="text-[9px] border-white/10 text-zinc-400 font-black px-4 py-1.5 rounded-full uppercase">Bench: {project.segment}</Badge>
                                 </div>
                             </div>
