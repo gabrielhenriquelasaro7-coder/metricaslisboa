@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
-import { useCargo } from '@/hooks/useCargo';
 import { useAuth } from '@/hooks/useAuth';
 
 interface GuestAccessGuardProps {
@@ -31,11 +30,6 @@ const GUEST_BLOCKED_ROUTES = [
   '/diagnostico',
 ];
 
-// Pages that only tech/master can access
-const TECH_MASTER_ONLY_ROUTES = [
-  '/diagnostico',
-];
-
 // Pages that require password change before access
 const REQUIRES_PASSWORD_CHANGE = [
   '/dashboard',
@@ -50,7 +44,6 @@ const REQUIRES_PASSWORD_CHANGE = [
 export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
   const { user, loading: authLoading } = useAuth();
   const { isGuest, needsPasswordChange, loading: roleLoading } = useUserRole();
-  const { isTech, loading: cargoLoading } = useCargo();
   const navigate = useNavigate();
   const location = useLocation();
   const hasNavigatedRef = useRef(false);
@@ -69,7 +62,7 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
     if (hasNavigatedRef.current) return;
     
     // Wait for all loading to finish
-    if (authLoading || roleLoading || cargoLoading) return;
+    if (authLoading || roleLoading) return;
     
     // Not logged in - let normal auth flow handle it
     if (!user) return;
@@ -88,16 +81,6 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
         navigate('/change-password', { replace: true });
         return;
       }
-    }
-
-    // Tech only routes
-    const isTechMasterOnly = TECH_MASTER_ONLY_ROUTES.some(route => 
-      currentPath === route || currentPath.startsWith(route + '/')
-    );
-    if (isTechMasterOnly && !isTech) {
-      hasNavigatedRef.current = true;
-      navigate('/dashboard', { replace: true });
-      return;
     }
 
     // Guest-specific restrictions below
@@ -129,7 +112,7 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
       hasNavigatedRef.current = true;
       navigate('/dashboard', { replace: true });
     }
-  }, [user, isGuest, isTech, needsPasswordChange, authLoading, roleLoading, cargoLoading, location.pathname, navigate]);
+  }, [user, isGuest, needsPasswordChange, authLoading, roleLoading, location.pathname, navigate]);
 
   // Always render children immediately - never block
   return <>{children}</>;
