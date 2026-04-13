@@ -868,7 +868,7 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
                                 {
                                     phase: "Mês 03",
                                     title: project.ai_analysis?.plan90Days?.phase3?.title || "Sustentação e Escala",
-                                    items: project.ai_analysis?.plan90Days?.phase3?.actions || ["Monitoramento de throughput 24/7", "Expansão de canais satélites", "Preparação para próxima restrição"]
+                                    items: project.ai_analysis?.plan90Days?.phase3?.actions || ["Monitoramento contínuo de métricas", "Expansão de canais satélites", "Preparação para próxima restrição"]
                                 }
                             ].map((p, i) => (
                                 <div key={i} className="bg-black/30 border border-white/5 p-8 rounded-[2.5rem] space-y-6 relative overflow-hidden group hover:border-red-600/20 transition-all">
