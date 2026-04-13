@@ -638,6 +638,62 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
                             </div>
                         )}
 
+                        {/* 1. RESTRIÇÃO ATIVA IDENTIFICADA */}
+                        <div id="restricao-ativa">
+                            <Card className="relative overflow-hidden border border-red-600/30 shadow-[0_0_50px_rgba(220,38,38,0.15)] bg-zinc-950 p-10 flex flex-col justify-center rounded-[2.5rem] group mt-6 w-full">
+                                <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/5 blur-[120px] pointer-events-none group-hover:bg-red-600/10 transition-all duration-700" />
+
+                                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-10">
+                                    <div className="flex-1 space-y-6">
+                                        <div className="flex flex-col gap-2">
+                                            <Badge className="w-fit bg-red-600 text-white border-red-600 text-[10px] font-black tracking-widest uppercase px-3 py-1 animate-pulse shadow-lg shadow-red-600/20">
+                                                Restrição Ativa Identificada
+                                            </Badge>
+                                            <h3 className="text-6xl md:text-7xl font-black text-white uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                                                {getStageName((analysis.bottleneck as any).id)} <span className="text-zinc-800 text-3xl">({getStageNum((analysis.bottleneck as any).id)})</span>
+                                            </h3>
+                                            <p className="text-red-500/80 font-black uppercase tracking-[0.3em] flex items-center gap-2 text-xs">
+                                                <AlertTriangle className="w-4 h-4" /> Gargalo Matemático Crítico
+                                            </p>
+                                        </div>
+
+                                        <p className="text-zinc-400 text-sm md:text-base leading-relaxed max-w-2xl font-medium">
+                                            Baseado nos benchmarks de <span className="text-white font-bold">{project.segment}</span>, identificamos que sua maior perda de throughput ocorre na trava de {getStageName((analysis.bottleneck as any).id)}. Isso significa que qualquer investimento em outras áreas terá <span className="text-red-500 font-bold italic">retorno decrescente</span> até que este ponto seja resolvido.
+                                        </p>
+
+                                        {project.ai_analysis && (
+                                            <div className="bg-indigo-600/10 border border-indigo-600/30 p-5 rounded-3xl mt-4 space-y-2 animate-in fade-in slide-in-from-left-4 duration-700">
+                                                <div className="flex items-center gap-2">
+                                                    <Zap className="w-4 h-4 text-indigo-500" />
+                                                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Parecer do Consultor (IA)</span>
+                                                </div>
+                                                <p className="text-white text-sm font-medium italic leading-relaxed">
+                                                    "{project.ai_analysis.executiveSummary}"
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-col gap-4 min-w-[300px]">
+                                        <div className="bg-black/50 backdrop-blur-md border border-white/5 p-6 rounded-3xl space-y-2">
+                                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Eficiência Atual Real</p>
+                                            <div className="flex items-end gap-2">
+                                                <span className="text-5xl font-black text-white tracking-tighter">
+                                                    {(analysis.bottleneck as any)?.id === 'cegueira' ? '0.00' : ((analysis.bottleneck as any)?.value || 0).toFixed(2)}
+                                                    {(analysis.bottleneck as any)?.id === 'exposicao' ? '' : '%'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="bg-red-950/20 border border-red-900/30 p-6 rounded-3xl space-y-1">
+                                            <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">Gap vs Benchmark</p>
+                                            <span className="text-3xl font-black text-red-500 tracking-tighter">
+                                                {((analysis.bottleneck as any)?.value || 0) >= 100 && (analysis.bottleneck as any)?.id !== 'cegueira' ? 0 : -Math.abs((analysis.bottleneck as any)?.penalty || 0).toFixed(0)} pts
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Card>
+                        </div>
 
                         {/* 1.5. DETALHAMENTO DO CONSULTOR (IA) */}
                         {project.ai_analysis && project.ai_analysis.coreProblem && (
@@ -789,6 +845,46 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
                             </div>
                         </div>
 
+                        <div className="space-y-4">
+                            <h4 className="text-sm font-black text-white uppercase tracking-widest italic ml-2">Benchmarks vs Real</h4>
+                            <div className="bg-black/30 border border-white/5 rounded-[2rem] overflow-hidden">
+                                <table className="w-full text-left text-[10px]">
+                                    <thead className="bg-white/5">
+                                        <tr>
+                                            <th className="px-5 py-3 font-black text-zinc-500 uppercase tracking-widest">Trava</th>
+                                            <th className="px-5 py-3 font-black text-zinc-500 uppercase tracking-widest text-center">Real</th>
+                                            <th className="px-5 py-3 font-black text-zinc-500 uppercase tracking-widest text-right">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {analysis.stageScores.slice().reverse().map(s => (
+                                            <tr key={s.id} className={cn("hover:bg-white/5 transition-colors", (analysis.bottleneck as any).id === s.id && "bg-red-600/5")}>
+                                                <td className="px-5 py-4 font-black text-white uppercase">{getStageLabel(s.id as string, project.segment)}</td>
+                                                <td className="px-5 py-4 font-mono text-white text-center">
+                                                    {(s.value || 0).toFixed(2)}
+                                                    {s.benchmark?.unit === 'percent' || s.id === 'cegueira' ? '%' : ''}
+                                                </td>
+                                                <td className="px-5 py-4 text-right">
+                                                    <span className={cn(
+                                                        "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest",
+                                                        s.status === 'proximo_do_ideal' ? "text-cyan-400 bg-cyan-400/10" :
+                                                            s.status === 'bom' ? "text-emerald-500 bg-emerald-500/10" :
+                                                                s.status === 'na_media' ? "text-amber-500 bg-amber-500/10" :
+                                                                    s.status === 'sem_dados' ? "text-zinc-500 bg-zinc-500/10" :
+                                                                        "text-red-500 bg-red-500/10"
+                                                    )}>
+                                                        {s.status === 'proximo_do_ideal' ? 'Excelente' :
+                                                            s.status === 'bom' ? 'Bom' :
+                                                                s.status === 'na_media' ? 'Médio' :
+                                                                    s.status === 'sem_dados' ? 'Sem Dados' : 'Gargalo'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </TabsContent>
 
@@ -810,7 +906,7 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
                                         <Badge className="bg-red-600/10 text-red-600 border-red-600/20 text-[8px] font-black uppercase">UDE {String(i + 1).padStart(2, '0')}</Badge>
                                         <p className="text-[11px] font-bold text-white uppercase tracking-tight italic leading-relaxed">{udeText}</p>
                                         <div className="h-px w-full bg-white/5" />
-                                        <p className="text-[10px] text-zinc-500 font-medium italic">Efeito indesejável identificado.</p>
+                                        <p className="text-[10px] text-zinc-500 font-medium italic">Sinalizador de perda de Throughput.</p>
                                     </Card>
                                 ))
                             ) : (
@@ -818,7 +914,7 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
                                     <Badge className="bg-red-600/10 text-red-600 border-red-600/20 text-[8px] font-black uppercase">UDE 01</Badge>
                                     <p className="text-[11px] font-bold text-white uppercase tracking-tight italic">Baixa vazão de receita na etapa de {getStageLabel((analysis.bottleneck as any).id, project.segment)}</p>
                                     <div className="h-px w-full bg-white/5" />
-                                    <p className="text-[10px] text-zinc-500 font-medium">Impacto: Restrição ativa no sistema.</p>
+                                    <p className="text-[10px] text-zinc-500 font-medium">Impacto: Imunização do throughput total do sistema.</p>
                                 </Card>
                             )}
                             <Card className="bg-red-600 border-red-600 p-6 rounded-[2rem] space-y-4 shadow-xl shadow-red-600/20">
@@ -868,7 +964,7 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
                                 {
                                     phase: "Mês 03",
                                     title: project.ai_analysis?.plan90Days?.phase3?.title || "Sustentação e Escala",
-                                    items: project.ai_analysis?.plan90Days?.phase3?.actions || ["Monitoramento contínuo de métricas", "Expansão de canais satélites", "Preparação para próxima restrição"]
+                                    items: project.ai_analysis?.plan90Days?.phase3?.actions || ["Monitoramento de throughput 24/7", "Expansão de canais satélites", "Preparação para próxima restrição"]
                                 }
                             ].map((p, i) => (
                                 <div key={i} className="bg-black/30 border border-white/5 p-8 rounded-[2.5rem] space-y-6 relative overflow-hidden group hover:border-red-600/20 transition-all">
