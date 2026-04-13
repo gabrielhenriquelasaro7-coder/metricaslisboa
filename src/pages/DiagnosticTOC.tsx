@@ -365,12 +365,6 @@ export default function DiagnosticTOC() {
               >
                 <Thermometer className="w-3.5 h-3.5" /> Metodologia TOC
               </button>
-              <button
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-700 cursor-not-allowed"
-                disabled
-              >
-                <Database className="w-3.5 h-3.5" /> Benchmarks Mundiais
-              </button>
             </div>
 
             {/* Seletor de Período */}
