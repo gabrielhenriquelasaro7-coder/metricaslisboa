@@ -399,7 +399,7 @@ export default function DiagnosticTOC() {
               {mode === 'list' && (
                 <div className="grid grid-cols-1 gap-4">
                   <div className="flex items-center justify-between px-2">
-                    <h3 className="text-xs font-black text-white uppercase tracking-widest">Diagnósticos Ativos</h3>
+                    <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Diagnósticos Ativos</h3>
                     <Badge variant="outline" className="text-[8px] bg-red-600/5 border-red-600/20 text-red-600 font-black tracking-widest">{projects.length} TOTAL</Badge>
                   </div>
                   <ProjectList
