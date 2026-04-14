@@ -1040,7 +1040,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
     const currentPhase = phases.find(p => p.steps.includes(currentStep.id)) || phases[0];
 
     return (
-        <div className="dark w-full space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
+        <div className="force-dark-theme w-full space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
             {/* Phase Stepper - Premium */}
             <div className="bg-zinc-950 p-6 rounded-[2rem] border border-white/5 shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 blur-[50px] pointer-events-none" />
