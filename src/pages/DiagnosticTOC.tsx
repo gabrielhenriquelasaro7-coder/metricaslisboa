@@ -454,13 +454,13 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
 }) {
   if (projects.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 bg-zinc-950/50 rounded-[2.5rem] border border-white/5 border-dashed">
-        <div className="w-20 h-20 bg-black rounded-3xl flex items-center justify-center border border-white/5 shadow-2xl">
-          <FileText className="w-10 h-10 text-zinc-800" />
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 bg-muted/30 rounded-[2.5rem] border border-border border-dashed">
+        <div className="w-20 h-20 bg-card rounded-3xl flex items-center justify-center border border-border shadow-lg">
+          <FileText className="w-10 h-10 text-muted-foreground" />
         </div>
         <div className="space-y-2">
-          <h3 className="text-xl font-black text-white uppercase tracking-tight italic">Nenhum diagnóstico ainda</h3>
-          <p className="text-[10px] text-zinc-500 max-w-[240px] mx-auto uppercase font-bold tracking-widest leading-relaxed">Sua jornada guiada por dados começa aqui. Identifique restrições agora.</p>
+          <h3 className="text-xl font-black text-foreground uppercase tracking-tight italic">Nenhum diagnóstico ainda</h3>
+          <p className="text-[10px] text-muted-foreground max-w-[240px] mx-auto uppercase font-bold tracking-widest leading-relaxed">Sua jornada guiada por dados começa aqui. Identifique restrições agora.</p>
         </div>
       </div>
     );
@@ -469,25 +469,25 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {projects.map(p => (
-        <Card key={p.id} className="relative overflow-hidden group p-5 bg-gradient-to-br from-zinc-950 to-black border-white/5 hover:border-red-600/30 transition-all duration-500 rounded-[2rem] flex flex-col justify-between h-full shadow-xl">
+        <Card key={p.id} className="relative overflow-hidden group p-5 bg-card border-border hover:border-red-600/30 transition-all duration-500 rounded-[2rem] flex flex-col justify-between h-full shadow-md">
           <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 blur-[50px] pointer-events-none group-hover:bg-red-600/10 transition-all duration-700" />
 
           <div className="relative z-10 space-y-5">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-black rounded-[1.25rem] flex items-center justify-center border border-white/10 group-hover:border-red-600/30 transition-all shadow-inner">
-                  <Globe className="w-6 h-6 text-zinc-500 group-hover:text-red-600" />
+                <div className="w-12 h-12 bg-muted rounded-[1.25rem] flex items-center justify-center border border-border group-hover:border-red-600/30 transition-all shadow-inner">
+                  <Globe className="w-6 h-6 text-muted-foreground group-hover:text-red-600" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-white uppercase tracking-tight italic leading-tight">{p.name || 'Projeto sem nome'}</h4>
+                  <h4 className="text-sm font-black text-foreground uppercase tracking-tight italic leading-tight">{p.name || 'Projeto sem nome'}</h4>
                   <div className="flex items-center gap-2 mt-1">
-                    <HistoryIcon className="w-3 h-3 text-zinc-700" />
-                    <span className="text-[9px] text-zinc-600 font-black uppercase tracking-widest">{p.segment}</span>
+                    <HistoryIcon className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{p.segment}</span>
                   </div>
                 </div>
               </div>
               <Badge variant="outline" className={cn(
-                "text-[8px] uppercase font-black px-3 py-1 rounded-full border-none shadow-lg",
+                "text-[8px] uppercase font-black px-3 py-1 rounded-full border-none shadow-sm",
                 p.status === 'completo' ? "text-emerald-500 bg-emerald-500/10" : "text-amber-500 bg-amber-500/10"
               )}>
                 {p.status === 'completo' ? 'Analisado' : 'Em Andamento'}
@@ -495,13 +495,13 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-white/5 rounded-2xl border border-white/5 flex flex-col gap-1">
-                <span className="text-[7px] font-black text-zinc-600 uppercase tracking-widest">Meta de Receita</span>
-                <span className="text-xs font-black text-white">R$ {p.goal.value.toLocaleString()}</span>
+              <div className="p-3 bg-muted/50 rounded-2xl border border-border flex flex-col gap-1">
+                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Meta de Receita</span>
+                <span className="text-xs font-black text-foreground">R$ {p.goal.value.toLocaleString()}</span>
               </div>
-              <div className="p-3 bg-white/5 rounded-2xl border border-white/5 flex flex-col gap-1">
-                <span className="text-[7px] font-black text-zinc-600 uppercase tracking-widest">Última Escala</span>
-                <span className="text-xs font-black text-zinc-400">Ativo</span>
+              <div className="p-3 bg-muted/50 rounded-2xl border border-border flex flex-col gap-1">
+                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Última Escala</span>
+                <span className="text-xs font-black text-muted-foreground">Ativo</span>
               </div>
             </div>
           </div>
@@ -517,7 +517,7 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-11 w-11 rounded-xl bg-black border-white/5 text-zinc-500 hover:text-white hover:border-white/20 active:scale-95 transition-all"
+                className="h-11 w-11 rounded-xl bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/20 active:scale-95 transition-all"
                 onClick={() => onEdit(p)}
               >
                 <ChevronRight className="w-4 h-4" />
@@ -525,7 +525,7 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-11 w-11 rounded-xl bg-black border-white/5 text-zinc-700 hover:text-red-500 hover:border-red-500/20 active:scale-95 transition-all"
+                className="h-11 w-11 rounded-xl bg-card border-border text-muted-foreground hover:text-red-500 hover:border-red-500/20 active:scale-95 transition-all"
                 onClick={() => onDelete(p.id)}
               >
                 <Trash2 className="w-4 h-4" />
