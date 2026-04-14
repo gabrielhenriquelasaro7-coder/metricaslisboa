@@ -318,12 +318,12 @@ export default function DiagnosticTOC() {
 
             {/* Stats Row */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-4 bg-black/60 border border-white/5 rounded-xl flex flex-col gap-1">
-                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Total Analisado</span>
-                <span className="text-2xl font-black text-white tracking-tighter">{projects.length} <span className="text-xs text-zinc-700 font-bold uppercase">Projetos</span></span>
+              <div className="p-4 bg-muted/50 border border-border rounded-xl flex flex-col gap-1">
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Total Analisado</span>
+                <span className="text-2xl font-black text-foreground tracking-tighter">{projects.length} <span className="text-xs text-muted-foreground font-bold uppercase">Projetos</span></span>
               </div>
-              <div className="p-4 bg-black/60 border border-white/5 rounded-xl flex flex-col gap-1">
-                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Completos</span>
+              <div className="p-4 bg-muted/50 border border-border rounded-xl flex flex-col gap-1">
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Completos</span>
                 <span className="text-2xl font-black text-emerald-500 tracking-tighter">
                   {projects.filter(p => p.status === 'completo').length}
                 </span>
@@ -331,12 +331,12 @@ export default function DiagnosticTOC() {
             </div>
 
             {/* Nav Tabs */}
-            <div className="flex items-center gap-1 border-t border-white/5 pt-4">
+            <div className="flex items-center gap-1 border-t border-border pt-4">
               <button
                 onClick={() => { setActiveTab('diagnostico'); setMode('list'); }}
                 className={cn(
                   "flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                  activeTab === 'diagnostico' ? "bg-white/10 text-white" : "text-zinc-600 hover:text-zinc-400"
+                  activeTab === 'diagnostico' ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <Layers className="w-3.5 h-3.5" /> Gestão de Projetos
@@ -345,7 +345,7 @@ export default function DiagnosticTOC() {
                 onClick={() => setActiveTab('modelo')}
                 className={cn(
                   "flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                  activeTab === 'modelo' ? "bg-white/10 text-white" : "text-zinc-600 hover:text-zinc-400"
+                  activeTab === 'modelo' ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <Thermometer className="w-3.5 h-3.5" /> Metodologia TOC
@@ -353,14 +353,14 @@ export default function DiagnosticTOC() {
             </div>
 
             {/* Seletor de Período */}
-            <div className="flex items-center gap-3 pt-4 border-t border-white/5">
-              <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Período de Análise:</span>
+            <div className="flex items-center gap-3 pt-4 border-t border-border">
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Período de Análise:</span>
               <div className="flex gap-2">
                 <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
-                  <SelectTrigger className="w-[120px] h-8 bg-black/40 border-white/5 text-[10px] font-bold uppercase rounded-lg">
+                  <SelectTrigger className="w-[120px] h-8 bg-muted/50 border-border text-[10px] font-bold uppercase rounded-lg">
                     <SelectValue placeholder="Mês" />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-950 border-white/10 text-white">
+                  <SelectContent className="bg-popover border-border text-popover-foreground">
                     {Array.from({ length: 12 }).map((_, i) => (
                       <SelectItem key={i + 1} value={(i + 1).toString()} className="text-[10px] font-bold uppercase">
                         {new Date(0, i).toLocaleString('pt-BR', { month: 'long' })}
@@ -370,10 +370,10 @@ export default function DiagnosticTOC() {
                 </Select>
 
                 <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
-                  <SelectTrigger className="w-[100px] h-8 bg-black/40 border-white/5 text-[10px] font-bold uppercase rounded-lg">
+                  <SelectTrigger className="w-[100px] h-8 bg-muted/50 border-border text-[10px] font-bold uppercase rounded-lg">
                     <SelectValue placeholder="Ano" />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-950 border-white/10 text-white">
+                  <SelectContent className="bg-popover border-border text-popover-foreground">
                     {[2024, 2025, 2026].map(y => (
                       <SelectItem key={y} value={y.toString()} className="text-[10px] font-bold uppercase">
                         {y}
