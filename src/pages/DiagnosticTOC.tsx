@@ -249,8 +249,8 @@ export default function DiagnosticTOC() {
     <DashboardLayout>
       <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500 w-full">
         {/* ── HEADER ── */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#3b0909] via-[#1a0505] to-[#0a0202] border border-red-900/30 rounded-[2rem] p-6 sm:p-8 shadow-2xl">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(220,38,38,0.15),transparent_60%)] pointer-events-none" />
+        <div className="relative overflow-hidden bg-card border border-border rounded-[2rem] p-6 sm:p-8 shadow-lg">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(220,38,38,0.08),transparent_60%)] pointer-events-none" />
 
           <div className="relative z-10 space-y-6">
             {/* Título + Botão */}
@@ -260,10 +260,10 @@ export default function DiagnosticTOC() {
                   <Target className="w-7 h-7 text-red-600" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-black text-white uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  <h1 className="text-xl font-black text-foreground uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                     Gestão de <span className="text-red-600">Restrições</span>
                   </h1>
-                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Intelligence Engine V4 · Bowtie TOC</p>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Intelligence Engine V4 · Bowtie TOC</p>
                 </div>
               </div>
 
@@ -275,18 +275,18 @@ export default function DiagnosticTOC() {
                     <Plus className="w-4 h-4" /> NOVO DIAGNÓSTICO
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md bg-zinc-950 border-white/5 text-white rounded-[2rem] shadow-2xl">
+                <DialogContent className="sm:max-w-md bg-popover border-border text-popover-foreground rounded-[2rem] shadow-2xl">
                   <DialogHeader>
-                    <DialogTitle className="text-xl font-black uppercase tracking-tight text-white mb-6 italic">Iniciar Diagnóstico</DialogTitle>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground mb-6 italic">Iniciar Diagnóstico</DialogTitle>
                   </DialogHeader>
 
                   <div className="relative mb-2">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       placeholder="Buscar projeto..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9 h-11 bg-black border-white/10 text-white placeholder:text-zinc-600 rounded-xl focus-visible:ring-red-600/50"
+                      className="pl-9 h-11 bg-background border-border text-foreground placeholder:text-muted-foreground rounded-xl focus-visible:ring-red-600/50"
                     />
                   </div>
 
