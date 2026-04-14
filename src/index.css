@@ -496,37 +496,6 @@
   }
 
 
-
-  /* Diagnostic methodology light-mode readability */
-  .light .diagnostic-model {
-    color: hsl(var(--foreground));
-  }
-
-  .light .diagnostic-model .text-white,
-  .light .diagnostic-model .text-white\/80,
-  .light .diagnostic-model .text-zinc-300,
-  .light .diagnostic-model .text-zinc-400,
-  .light .diagnostic-model .text-zinc-500,
-  .light .diagnostic-model .text-zinc-600,
-  .light .diagnostic-model .text-zinc-700 {
-    color: hsl(var(--foreground));
-  }
-
-  .light .diagnostic-model .bg-zinc-950,
-  .light .diagnostic-model .bg-zinc-950\/80,
-  .light .diagnostic-model .bg-black\/40,
-  .light .diagnostic-model .bg-black\/20 {
-    background-color: hsl(var(--card));
-  }
-
-  .light .diagnostic-model .border-white\/5,
-  .light .diagnostic-model .border-white\/10 {
-    border-color: hsl(var(--border));
-  }
-
-  .light .diagnostic-model .shadow-black\/50 {
-    box-shadow: 0 10px 30px -18px hsl(var(--foreground) / 0.12);
-  }
 }
 
 @layer base {
