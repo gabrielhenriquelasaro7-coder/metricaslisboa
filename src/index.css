@@ -496,32 +496,36 @@
   }
 
 
-  /* Force dark theme for diagnostic section even in light mode */
-  .force-dark-theme {
-    --background: 0 0% 3%;
-    --foreground: 0 0% 100%;
-    --card: 0 0% 6%;
-    --card-foreground: 0 0% 100%;
-    --popover: 0 0% 6%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 0 85% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 10%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 55%;
-    --accent: 0 75% 50%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 15%;
-    --input: 0 0% 10%;
-    --ring: 0 85% 55%;
-    background-color: hsl(0 0% 3%);
-    color: hsl(0 0% 100%);
-    color-scheme: dark;
-    border-radius: 1.5rem;
-    padding: 1px;
+
+  /* Diagnostic methodology light-mode readability */
+  .light .diagnostic-model {
+    color: hsl(var(--foreground));
+  }
+
+  .light .diagnostic-model .text-white,
+  .light .diagnostic-model .text-white\/80,
+  .light .diagnostic-model .text-zinc-300,
+  .light .diagnostic-model .text-zinc-400,
+  .light .diagnostic-model .text-zinc-500,
+  .light .diagnostic-model .text-zinc-600,
+  .light .diagnostic-model .text-zinc-700 {
+    color: hsl(var(--foreground));
+  }
+
+  .light .diagnostic-model .bg-zinc-950,
+  .light .diagnostic-model .bg-zinc-950\/80,
+  .light .diagnostic-model .bg-black\/40,
+  .light .diagnostic-model .bg-black\/20 {
+    background-color: hsl(var(--card));
+  }
+
+  .light .diagnostic-model .border-white\/5,
+  .light .diagnostic-model .border-white\/10 {
+    border-color: hsl(var(--border));
+  }
+
+  .light .diagnostic-model .shadow-black\/50 {
+    box-shadow: 0 10px 30px -18px hsl(var(--foreground) / 0.12);
   }
 }
 
