@@ -77,7 +77,7 @@ function SectionLabel({ tag, title, subtitle }: { tag: string; title: string; su
 
 export function DiagnosticModel() {
     return (
-        <div className="space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
+        <div className="dark space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
 
             {/* ── HERO ─────────────────────────────────────────────────── */}
             <section className="relative overflow-hidden flex flex-col items-center text-center">
