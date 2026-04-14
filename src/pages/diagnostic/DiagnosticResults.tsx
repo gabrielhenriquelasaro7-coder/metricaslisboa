@@ -579,7 +579,7 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
     };
 
     return (
-        <div className="force-dark-theme space-y-8 animate-in fade-in zoom-in-95 duration-700 bg-zinc-950 rounded-[2rem] p-3 sm:p-5 lg:p-6 border border-white/5 overflow-hidden relative shadow-2xl w-full">
+        <div className="space-y-8 animate-in fade-in zoom-in-95 duration-700 bg-zinc-950 rounded-[2rem] p-3 sm:p-5 lg:p-6 border border-white/5 overflow-hidden relative shadow-2xl w-full">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.03)_0%,transparent_50%)] pointer-events-none opacity-20" />
             <div className="relative z-10">
                 {/* Header do Relatório */}
