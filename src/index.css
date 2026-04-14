@@ -517,7 +517,11 @@
     --border: 0 0% 15%;
     --input: 0 0% 10%;
     --ring: 0 85% 55%;
+    background-color: hsl(0 0% 3%);
+    color: hsl(0 0% 100%);
     color-scheme: dark;
+    border-radius: 1.5rem;
+    padding: 1px;
   }
 }
 
