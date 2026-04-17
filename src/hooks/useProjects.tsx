@@ -272,7 +272,18 @@ export function useProjects() {
   }, [user]);
 
   const createProject = async (data: CreateProjectData) => {
-    if (!user) throw new Error('Usuário não autenticado');
+    const {
+      data: { user: authenticatedUser },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    const currentUser = authenticatedUser ?? user;
+
+    if (authError) {
+      console.error('Error resolving authenticated user during project creation:', authError);
+    }
+
+    if (!currentUser) throw new Error('Usuário não autenticado');
 
     try {
       // Extract investidor_ids before creating project
@@ -281,7 +292,7 @@ export function useProjects() {
       const { data: project, error } = await supabase
         .from('projects')
         .insert({
-          user_id: user.id,
+          user_id: currentUser.id,
           ...projectData,
           sync_progress: { status: 'idle', progress: 0, message: 'Aguardando seleção do tipo de importação...', started_at: null },
         })
@@ -331,7 +342,7 @@ export function useProjects() {
           const accessRecords = investidorUsers.map(inv => ({
             project_id: project.id,
             user_id: inv.user_id,
-            granted_by: user.id,
+            granted_by: currentUser.id,
           }));
 
           await supabase
@@ -344,7 +355,7 @@ export function useProjects() {
       try {
         await supabase.functions.invoke('sync-webhook', {
           body: {
-            user_id: user.id,
+            user_id: currentUser.id,
             project_id: project.id,
             ad_account_id: data.ad_account_id,
             business_model: data.business_model,
