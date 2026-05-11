@@ -64,6 +64,91 @@ import { DiagnosticProject } from '@/types/diagnostic';
 
 const PROJECTS_STORAGE_KEY = 'diagnostic_projects_v1';
 
+const toISODate = (date: Date) => date.toISOString().slice(0, 10);
+const sumMetric = (rows: any[], key: string) => rows.reduce((sum, row) => sum + (Number(row?.[key]) || 0), 0);
+const pct = (part: number, total: number) => total > 0 ? Number(((part / total) * 100).toFixed(2)) : 0;
+
+async function refreshDiagnosticProjectWithLiveData(project: DiagnosticProject): Promise<DiagnosticProject> {
+  const systemProjectId = (project as any).systemProjectId || (project as any).projectId;
+  if (!systemProjectId) return project;
+
+  const untilDate = new Date();
+  const sinceDate = new Date();
+  sinceDate.setDate(untilDate.getDate() - 30);
+  const since = toISODate(sinceDate);
+  const until = toISODate(untilDate);
+
+  const [{ data: adsRows, error: adsError }, { data: crmConnections }, { data: crmDeals, error: crmError }] = await Promise.all([
+    supabase
+      .from('ads_daily_metrics')
+      .select('date, spend, impressions, clicks, conversions, leads_count, purchases_count, synced_at')
+      .eq('project_id', systemProjectId)
+      .gte('date', since)
+      .lte('date', until)
+      .order('date', { ascending: false })
+      .range(0, 9999),
+    supabase
+      .from('crm_connections')
+      .select('id, provider, status, display_name, updated_at, last_error')
+      .eq('project_id', systemProjectId)
+      .order('updated_at', { ascending: false })
+      .limit(1),
+    supabase
+      .from('crm_deals')
+      .select('id, status, value, stage_name, created_date, closed_date, synced_at')
+      .eq('project_id', systemProjectId)
+      .gte('created_date', `${since}T00:00:00`)
+      .lte('created_date', `${until}T23:59:59`)
+      .order('created_date', { ascending: false })
+      .range(0, 9999),
+  ]);
+
+  if (adsError) console.warn('[DiagnosticTOC] Erro ao atualizar mídia do diagnóstico:', adsError);
+  if (crmError) console.warn('[DiagnosticTOC] Erro ao atualizar CRM do diagnóstico:', crmError);
+
+  const ads = adsRows || [];
+  const deals = crmDeals || [];
+  const crm = crmConnections?.[0];
+  const crmConnected = crm?.status === 'connected';
+
+  const spend = sumMetric(ads, 'spend');
+  const impressions = sumMetric(ads, 'impressions');
+  const clicks = sumMetric(ads, 'clicks');
+  const adsLeads = sumMetric(ads, 'leads_count') || sumMetric(ads, 'conversions');
+  const sales = deals.filter((deal: any) => deal.status === 'won').length;
+  const proposalStages = ['NEGOCIA', 'PROPOSTA', 'FECHADO', 'PERDIDO', 'WON', 'LOST'];
+  const proposals = deals.filter((deal: any) => proposalStages.some(token => String(deal.stage_name || '').toUpperCase().includes(token)) || ['won', 'lost'].includes(deal.status)).length;
+  const latestAdsSync = ads.map((row: any) => row.synced_at).filter(Boolean).sort().at(-1);
+  const latestCrmSync = deals.map((row: any) => row.synced_at).filter(Boolean).sort().at(-1) || crm?.updated_at;
+
+  const mediaEvidence = latestAdsSync ? `Mídia atualizada em ${new Date(latestAdsSync).toLocaleString('pt-BR')}` : 'Mídia recalculada dos últimos 30 dias';
+  const crmEvidence = latestCrmSync ? `CRM ${crmConnected ? 'conectado' : 'não conectado'} · atualizado em ${new Date(latestCrmSync).toLocaleString('pt-BR')}` : 'CRM recalculado dos últimos 30 dias';
+
+  return {
+    ...project,
+    id: project.id,
+    projectId: (project as any).projectId || systemProjectId,
+    systemProjectId,
+    updatedAt: new Date().toISOString(),
+    tracking: {
+      ...project.tracking,
+      crm_com_origem: crmConnected,
+      funil_padronizado_crm: crmConnected,
+      conf_crm: crmConnected ? 'alta' : project.tracking?.conf_crm || 'baixa',
+    },
+    bowtie: {
+      ...project.bowtie,
+      exposicao: { ...project.bowtie.exposicao, value: impressions > 0 ? Number(((spend / impressions) * 1000).toFixed(2)) : project.bowtie.exposicao.value, reliability: ads.length ? 'alta' : project.bowtie.exposicao.reliability, evidence: mediaEvidence },
+      atencao: { ...project.bowtie.atencao, value: impressions > 0 ? pct(clicks, impressions) : project.bowtie.atencao.value, reliability: ads.length ? 'alta' : project.bowtie.atencao.reliability, evidence: mediaEvidence },
+      interesse: { ...project.bowtie.interesse, value: adsLeads > 0 ? pct(deals.length, adsLeads) : project.bowtie.interesse.value, reliability: crmConnected && ads.length ? 'alta' : project.bowtie.interesse.reliability, evidence: `${crmEvidence} · ${deals.length} negócios / ${adsLeads} leads` },
+      qualificacao: { ...project.bowtie.qualificacao, value: deals.length > 0 ? pct(proposals, deals.length) : project.bowtie.qualificacao.value, reliability: crmConnected ? 'alta' : project.bowtie.qualificacao.reliability, evidence: `${crmEvidence} · ${proposals} propostas / ${deals.length} negócios` },
+      compromisso: { ...project.bowtie.compromisso, value: proposals > 0 ? pct(sales, proposals) : project.bowtie.compromisso.value, reliability: crmConnected ? 'alta' : project.bowtie.compromisso.reliability, evidence: `${crmEvidence} · ${sales} vendas / ${proposals} propostas` },
+      decisao: { ...project.bowtie.decisao, value: deals.length > 0 ? pct(sales, deals.length) : project.bowtie.decisao.value, reliability: crmConnected ? 'alta' : project.bowtie.decisao.reliability, evidence: `${crmEvidence} · ${sales} vendas / ${deals.length} negócios` },
+      cegueira: { ...project.bowtie.cegueira, value: crmConnected && ads.length ? 10 : project.bowtie.cegueira.value, reliability: crmConnected && ads.length ? 'alta' : project.bowtie.cegueira.reliability, evidence: crmConnected ? crmEvidence : project.bowtie.cegueira.evidence },
+    }
+  } as DiagnosticProject;
+}
+
 export default function DiagnosticTOC() {
   const [activeTab, setActiveTab] = useState('modelo');
   const [projects, setProjects] = useState<DiagnosticProject[]>([]);
@@ -125,6 +210,34 @@ export default function DiagnosticTOC() {
   useEffect(() => {
     fetchReports();
   }, [selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (mode === 'results' && currentProject) {
+      refreshDiagnosticProjectWithLiveData(currentProject)
+        .then((fresh) => {
+          if (!cancelled) setCurrentProject(fresh);
+        })
+        .catch((error) => console.warn('[DiagnosticTOC] Não foi possível atualizar dados ao abrir resultado:', error));
+    }
+    return () => { cancelled = true; };
+  }, [mode, currentProject?.id]);
+
+  const openProject = async (p: DiagnosticProject, nextMode: 'wizard' | 'results') => {
+    setIsLoading(true);
+    try {
+      const fresh = await refreshDiagnosticProjectWithLiveData(p);
+      setCurrentProject(fresh);
+      setMode(nextMode);
+      if (nextMode === 'results') toast.success('Resultado atualizado com dados atuais.');
+    } catch (error) {
+      console.error('[DiagnosticTOC] Erro ao abrir diagnóstico atualizado:', error);
+      setCurrentProject(p);
+      setMode(nextMode);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const saveProject = async (p: DiagnosticProject): Promise<DiagnosticProject> => {
     const systemProjectId = (p as any).systemProjectId || (p as any).projectId || p.id;
@@ -424,8 +537,8 @@ export default function DiagnosticTOC() {
                   </div>
                   <ProjectList
                     projects={projects}
-                    onOpen={(p) => { setCurrentProject(p); setMode('results'); }}
-                    onEdit={(p) => { setCurrentProject(p); setMode('wizard'); }}
+                    onOpen={(p) => openProject(p, 'results')}
+                    onEdit={(p) => openProject(p, 'wizard')}
                     onDelete={(id) => deleteProject(id)}
                   />
                 </div>
@@ -448,6 +561,7 @@ export default function DiagnosticTOC() {
               {mode === 'results' && currentProject && (
                 <div className="animate-in fade-in zoom-in-95 duration-500">
                   <DiagnosticResults
+                    key={`${currentProject.id}-${currentProject.updatedAt}`}
                     project={currentProject}
                     onBack={() => setMode('list')}
                     onEdit={() => setMode('wizard')}
