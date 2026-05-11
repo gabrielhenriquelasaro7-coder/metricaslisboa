@@ -1993,7 +1993,7 @@ Deno.serve(async (req) => {
     await supabase.from('projects').update({ 
       last_sync_at: new Date().toISOString(), 
       webhook_status: 'active',
-      sync_progress: { step: 'complete', message: `Base sync concluído em ${Math.round(duration / 1000)}s`, current: 5, total: 5 }
+      sync_progress: { step: 'complete', message: `Base sync concluído em ${Math.round(duration / 1000)}s`, current: 5, total: 5, retry_count: 0, will_retry: false, next_retry_at: null }
     }).eq('id', project_id);
 
     console.log(`[BASE-SYNC] Completed in ${duration}ms - Records: ${dailyRecords.length}`);
