@@ -774,10 +774,11 @@ async function fetchHelpSysDeals(
   const buildDateWindows = () => {
     const today = new Date();
     const endDate = formatSaoPauloDate(today);
-    const currentMonthStart = endDate.slice(0, 8) + '01';
 
     if (syncType === 'incremental') {
-      return [{ start: currentMonthStart, end: endDate }];
+      const recentStart = new Date(today);
+      recentStart.setUTCDate(recentStart.getUTCDate() - 45);
+      return [{ start: formatSaoPauloDate(recentStart), end: endDate }];
     }
 
     const windows: Array<{ start: string; end: string }> = [];
