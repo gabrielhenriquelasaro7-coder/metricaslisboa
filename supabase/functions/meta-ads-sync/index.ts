@@ -2016,26 +2016,49 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('[SYNC] Error:', error);
     const errMsg = error instanceof Error ? error.message : 'Erro desconhecido';
+    let willRetry = true;
     try {
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
       const body = await req.clone().json().catch(() => ({}));
       if (body.project_id) {
-        // Mark project as retry_pending so scheduled-sync re-processes it on the next run
+        // Read current retry counter from sync_progress so we can stop after the limit.
+        const { data: projectRow } = await supabase
+          .from('projects')
+          .select('sync_progress')
+          .eq('id', body.project_id)
+          .maybeSingle();
+
+        const prevRetryCount = Number(projectRow?.sync_progress?.retry_count ?? 0);
+        const nextRetryCount = prevRetryCount + 1;
+        willRetry = nextRetryCount <= MAX_PROJECT_RETRIES;
+        const backoffMs = PROJECT_RETRY_BACKOFF_MS[Math.min(prevRetryCount, PROJECT_RETRY_BACKOFF_MS.length - 1)];
+        const nextRetryAt = willRetry ? new Date(Date.now() + backoffMs).toISOString() : null;
         const isRateLimit = /rate limit|user request limit|429|Retry-After/i.test(errMsg);
+
         await supabase.from('projects').update({
-          webhook_status: 'retry_pending',
+          // After MAX_PROJECT_RETRIES we stop the loop and mark as plain error so scheduled-sync ignores it.
+          webhook_status: willRetry ? 'retry_pending' : 'error',
           sync_progress: {
             step: 'error',
             message: errMsg,
-            will_retry: true,
+            will_retry: willRetry,
             rate_limited: isRateLimit,
             failed_at: new Date().toISOString(),
+            retry_count: nextRetryCount,
+            max_retries: MAX_PROJECT_RETRIES,
+            next_retry_at: nextRetryAt,
+            backoff_ms: willRetry ? backoffMs : null,
           },
         }).eq('id', body.project_id);
       }
-    } catch {}
-    return new Response(JSON.stringify({ success: false, error: errMsg, retry: true }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    } catch (logErr) {
+      console.error('[SYNC] Failed to persist retry state:', logErr);
+    }
+    return new Response(
+      JSON.stringify({ success: false, error: errMsg, retry: willRetry }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
 });
