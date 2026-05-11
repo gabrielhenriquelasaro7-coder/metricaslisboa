@@ -68,7 +68,11 @@ const BASE_DELAY_MS = 200;
 const MAX_RETRIES = 5;
 // Exponential backoff with jitter (ms) — used as fallback when Retry-After header is absent
 const VALIDATION_RETRY_DELAYS = [5000, 15000, 30000, 60000, 120000];
-const MAX_RETRY_AFTER_MS = 180000; // cap any Retry-After at 3 minutes to keep the function responsive
+const MAX_RETRY_AFTER_MS = HELPER_MAX_RETRY_AFTER_MS; // re-export for in-file references
+
+// Project-level retry policy (used when sync fails and we need scheduled-sync to reprocess)
+const MAX_PROJECT_RETRIES = 5;
+const PROJECT_RETRY_BACKOFF_MS = [5 * 60_000, 15 * 60_000, 30 * 60_000, 60 * 60_000, 120 * 60_000];
 
 const TRACKED_FIELDS_CAMPAIGN = ['status', 'objective'];
 const TRACKED_FIELDS_ADSET = ['status', 'targeting'];
