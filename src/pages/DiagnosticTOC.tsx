@@ -95,6 +95,8 @@ export default function DiagnosticTOC() {
           id: r.id,
           dbId: r.id,
           projectId: r.project_id,
+          // Preserve link to the system project (used for live data lookups)
+          systemProjectId: reportData.systemProjectId || r.project_id,
           month: r.month,
           year: r.year,
           updatedAt: r.updated_at
