@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { parseRetryAfter, parseUsageHeader, MAX_RETRY_AFTER_MS as HELPER_MAX_RETRY_AFTER_MS } from './_retry_helpers.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,7 +68,11 @@ const BASE_DELAY_MS = 200;
 const MAX_RETRIES = 5;
 // Exponential backoff with jitter (ms) — used as fallback when Retry-After header is absent
 const VALIDATION_RETRY_DELAYS = [5000, 15000, 30000, 60000, 120000];
-const MAX_RETRY_AFTER_MS = 180000; // cap any Retry-After at 3 minutes to keep the function responsive
+const MAX_RETRY_AFTER_MS = HELPER_MAX_RETRY_AFTER_MS; // re-export for in-file references
+
+// Project-level retry policy (used when sync fails and we need scheduled-sync to reprocess)
+const MAX_PROJECT_RETRIES = 5;
+const PROJECT_RETRY_BACKOFF_MS = [5 * 60_000, 15 * 60_000, 30 * 60_000, 60 * 60_000, 120 * 60_000];
 
 const TRACKED_FIELDS_CAMPAIGN = ['status', 'objective'];
 const TRACKED_FIELDS_ADSET = ['status', 'targeting'];
@@ -106,39 +111,7 @@ function isTokenExpiredError(data: any): boolean {
   return code === 190 || code === '190' || subcode === 463 || subcode === 467 || (msg.includes('access token') && (msg.includes('expired') || msg.includes('invalid')));
 }
 
-function parseRetryAfter(headerValue: string | null): number | null {
-  if (!headerValue) return null;
-  const trimmed = headerValue.trim();
-  if (/^\d+$/.test(trimmed)) {
-    return Math.min(parseInt(trimmed, 10) * 1000, MAX_RETRY_AFTER_MS);
-  }
-  const date = Date.parse(trimmed);
-  if (!isNaN(date)) {
-    return Math.min(Math.max(0, date - Date.now()), MAX_RETRY_AFTER_MS);
-  }
-  return null;
-}
-
-function parseUsageHeader(headerValue: string | null): number | null {
-  if (!headerValue) return null;
-  try {
-    const parsed = JSON.parse(headerValue);
-    let maxEstimated = 0;
-    const visit = (node: any) => {
-      if (!node) return;
-      if (Array.isArray(node)) { node.forEach(visit); return; }
-      if (typeof node === 'object') {
-        if (typeof node.estimated_time_to_regain_access === 'number') {
-          maxEstimated = Math.max(maxEstimated, node.estimated_time_to_regain_access);
-        }
-        Object.values(node).forEach(visit);
-      }
-    };
-    visit(parsed);
-    if (maxEstimated > 0) return Math.min(maxEstimated * 60 * 1000, MAX_RETRY_AFTER_MS);
-  } catch {}
-  return null;
-}
+// parseRetryAfter / parseUsageHeader live in ./_retry_helpers.ts so they can be unit-tested.
 
 async function simpleFetch(url: string, options?: RequestInit, timeoutMs = 60000): Promise<any> {
   try {
@@ -2020,7 +1993,7 @@ Deno.serve(async (req) => {
     await supabase.from('projects').update({ 
       last_sync_at: new Date().toISOString(), 
       webhook_status: 'active',
-      sync_progress: { step: 'complete', message: `Base sync concluído em ${Math.round(duration / 1000)}s`, current: 5, total: 5 }
+      sync_progress: { step: 'complete', message: `Base sync concluído em ${Math.round(duration / 1000)}s`, current: 5, total: 5, retry_count: 0, will_retry: false, next_retry_at: null }
     }).eq('id', project_id);
 
     console.log(`[BASE-SYNC] Completed in ${duration}ms - Records: ${dailyRecords.length}`);
@@ -2043,26 +2016,49 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('[SYNC] Error:', error);
     const errMsg = error instanceof Error ? error.message : 'Erro desconhecido';
+    let willRetry = true;
     try {
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
       const body = await req.clone().json().catch(() => ({}));
       if (body.project_id) {
-        // Mark project as retry_pending so scheduled-sync re-processes it on the next run
+        // Read current retry counter from sync_progress so we can stop after the limit.
+        const { data: projectRow } = await supabase
+          .from('projects')
+          .select('sync_progress')
+          .eq('id', body.project_id)
+          .maybeSingle();
+
+        const prevRetryCount = Number(projectRow?.sync_progress?.retry_count ?? 0);
+        const nextRetryCount = prevRetryCount + 1;
+        willRetry = nextRetryCount <= MAX_PROJECT_RETRIES;
+        const backoffMs = PROJECT_RETRY_BACKOFF_MS[Math.min(prevRetryCount, PROJECT_RETRY_BACKOFF_MS.length - 1)];
+        const nextRetryAt = willRetry ? new Date(Date.now() + backoffMs).toISOString() : null;
         const isRateLimit = /rate limit|user request limit|429|Retry-After/i.test(errMsg);
+
         await supabase.from('projects').update({
-          webhook_status: 'retry_pending',
+          // After MAX_PROJECT_RETRIES we stop the loop and mark as plain error so scheduled-sync ignores it.
+          webhook_status: willRetry ? 'retry_pending' : 'error',
           sync_progress: {
             step: 'error',
             message: errMsg,
-            will_retry: true,
+            will_retry: willRetry,
             rate_limited: isRateLimit,
             failed_at: new Date().toISOString(),
+            retry_count: nextRetryCount,
+            max_retries: MAX_PROJECT_RETRIES,
+            next_retry_at: nextRetryAt,
+            backoff_ms: willRetry ? backoffMs : null,
           },
         }).eq('id', body.project_id);
       }
-    } catch {}
-    return new Response(JSON.stringify({ success: false, error: errMsg, retry: true }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    } catch (logErr) {
+      console.error('[SYNC] Failed to persist retry state:', logErr);
+    }
+    return new Response(
+      JSON.stringify({ success: false, error: errMsg, retry: willRetry }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
 });

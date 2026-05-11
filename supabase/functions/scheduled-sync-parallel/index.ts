@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
     // Busca projetos com Meta e/ou Google configurado (incluindo token por projeto)
     let projectsQuery = supabase
       .from('projects')
-      .select('id, ad_account_id, name, google_customer_id, access_token')
+      .select('id, ad_account_id, name, google_customer_id, access_token, sync_progress, webhook_status')
       .eq('archived', false);
 
     if (project_ids && project_ids.length > 0) {
@@ -267,10 +267,39 @@ Deno.serve(async (req) => {
 
     const { data: allProjects, error: projectsError } = await projectsQuery;
 
-    // Filter: must have at least Meta OR Google configured
-    const projects = (allProjects || []).filter(p =>
-      p.ad_account_id?.startsWith('act_') || !!p.google_customer_id?.trim()
-    );
+    const nowMs = Date.now();
+    const skippedScheduled: string[] = [];
+    const skippedExhausted: string[] = [];
+
+    // Filter: must have at least Meta OR Google configured AND respect retry schedule
+    const projects = (allProjects || []).filter(p => {
+      const hasAdAccount = p.ad_account_id?.startsWith('act_') || !!p.google_customer_id?.trim();
+      if (!hasAdAccount) return false;
+
+      // For retry_pending projects honor will_retry flag and next_retry_at scheduling
+      if (p.webhook_status === 'retry_pending') {
+        const sp = p.sync_progress || {};
+        if (sp.will_retry === false) {
+          skippedExhausted.push(p.name || p.id);
+          return false;
+        }
+        if (sp.next_retry_at) {
+          const nextMs = Date.parse(sp.next_retry_at);
+          if (!isNaN(nextMs) && nextMs > nowMs) {
+            skippedScheduled.push(`${p.name || p.id} (in ${Math.round((nextMs - nowMs) / 60_000)}m)`);
+            return false;
+          }
+        }
+      }
+      return true;
+    });
+
+    if (skippedScheduled.length) {
+      console.log(`[SYNC] Skipping ${skippedScheduled.length} project(s) waiting for next_retry_at:`, skippedScheduled.slice(0, 10));
+    }
+    if (skippedExhausted.length) {
+      console.log(`[SYNC] Skipping ${skippedExhausted.length} project(s) that exhausted retries:`, skippedExhausted.slice(0, 10));
+    }
 
     if (projectsError || projects.length === 0) {
       return new Response(
