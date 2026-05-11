@@ -870,7 +870,9 @@ export type Database = {
       crm_connections: {
         Row: {
           access_token: string | null
+          access_token_enc: string | null
           api_key: string | null
+          api_key_enc: string | null
           api_url: string | null
           config: Json | null
           connected_at: string | null
@@ -883,6 +885,7 @@ export type Database = {
           project_id: string
           provider: Database["public"]["Enums"]["crm_provider"]
           refresh_token: string | null
+          refresh_token_enc: string | null
           sql_stage_ids: string[] | null
           status: Database["public"]["Enums"]["crm_connection_status"] | null
           token_expires_at: string | null
@@ -891,7 +894,9 @@ export type Database = {
         }
         Insert: {
           access_token?: string | null
+          access_token_enc?: string | null
           api_key?: string | null
+          api_key_enc?: string | null
           api_url?: string | null
           config?: Json | null
           connected_at?: string | null
@@ -904,6 +909,7 @@ export type Database = {
           project_id: string
           provider: Database["public"]["Enums"]["crm_provider"]
           refresh_token?: string | null
+          refresh_token_enc?: string | null
           sql_stage_ids?: string[] | null
           status?: Database["public"]["Enums"]["crm_connection_status"] | null
           token_expires_at?: string | null
@@ -912,7 +918,9 @@ export type Database = {
         }
         Update: {
           access_token?: string | null
+          access_token_enc?: string | null
           api_key?: string | null
+          api_key_enc?: string | null
           api_url?: string | null
           config?: Json | null
           connected_at?: string | null
@@ -925,6 +933,7 @@ export type Database = {
           project_id?: string
           provider?: Database["public"]["Enums"]["crm_provider"]
           refresh_token?: string | null
+          refresh_token_enc?: string | null
           sql_stage_ids?: string[] | null
           status?: Database["public"]["Enums"]["crm_connection_status"] | null
           token_expires_at?: string | null
