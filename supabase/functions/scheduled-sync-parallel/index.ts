@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
+import { filterProjectsForSync } from './_filter.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
