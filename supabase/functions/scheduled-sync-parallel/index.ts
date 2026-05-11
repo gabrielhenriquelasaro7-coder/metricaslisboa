@@ -267,8 +267,6 @@ Deno.serve(async (req) => {
     console.log(`[SYNC] Fetching projects with Meta or Google configured`);
 
     const { data: allProjects, error: projectsError } = await projectsQuery;
-
-    const { data: allProjects, error: projectsError } = await projectsQuery;
     console.log(`[SYNC] Query returned ${allProjects?.length ?? 0} projects, error:`, projectsError?.message || 'none');
 
     const { eligible: projects, skippedScheduled, skippedExhausted, skippedNoAccount } =
