@@ -435,9 +435,9 @@ export default function DiagnosticTOC() {
                 <div className="animate-in fade-in zoom-in-95 duration-500">
                   <DiagnosticWizard
                     project={currentProject}
-                    onSave={(p) => {
-                      setCurrentProject(p);
-                      saveProject(p);
+                    onSave={async (p) => {
+                      const fresh = await saveProject(p);
+                      setCurrentProject(fresh);
                       setMode('results');
                     }}
                     onCancel={() => setMode('list')}
@@ -451,9 +451,9 @@ export default function DiagnosticTOC() {
                     project={currentProject}
                     onBack={() => setMode('list')}
                     onEdit={() => setMode('wizard')}
-                    onSave={(p) => {
-                      setCurrentProject(p);
-                      saveProject(p);
+                    onSave={async (p) => {
+                      const fresh = await saveProject(p);
+                      setCurrentProject(fresh);
                     }}
                   />
                 </div>
