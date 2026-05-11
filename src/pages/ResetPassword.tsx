@@ -18,50 +18,107 @@ export default function ResetPassword() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Check if user arrived via a recovery link
-    const checkSession = async () => {
-      // Parse hash params for recovery token
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const type = hashParams.get('type');
-      const accessToken = hashParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token');
+    let resolved = false;
+    let cancelled = false;
 
-      if (type === 'recovery' && accessToken) {
-        // Set the session from the recovery tokens
-        const { error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken || '',
-        });
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-        if (!error) {
-          setIsValidSession(true);
-        } else {
-          console.error('[ResetPassword] Error setting session:', error);
-          toast.error('Link de recuperação inválido ou expirado');
-        }
-      } else {
-        // Also check if there's already an active session (e.g. PKCE flow)
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          setIsValidSession(true);
-        } else {
-          toast.error('Link de recuperação inválido ou expirado');
-        }
-      }
+    const clearUrlSecrets = () => {
+      const url = new URL(window.location.href);
+      url.hash = '';
+      url.searchParams.delete('code');
+      url.searchParams.delete('type');
+      window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
+    };
+
+    const markValid = () => {
+      if (cancelled || resolved) return;
+      resolved = true;
+      clearUrlSecrets();
+      setIsValidSession(true);
       setChecking(false);
     };
 
-    // Listen for PASSWORD_RECOVERY event (PKCE flow)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsValidSession(true);
-        setChecking(false);
+    const markInvalid = (message = 'Link de recuperação inválido ou expirado') => {
+      if (cancelled || resolved) return;
+      resolved = true;
+      toast.error(message);
+      setIsValidSession(false);
+      setChecking(false);
+    };
+
+    const waitForSession = async () => {
+      for (let attempt = 0; attempt < 12; attempt += 1) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) return session;
+        await wait(250);
+      }
+      return null;
+    };
+
+    // Check if user arrived via a recovery link
+    const checkSession = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const searchParams = new URLSearchParams(window.location.search);
+      const errorMessage = hashParams.get('error_description') || searchParams.get('error_description');
+      const code = searchParams.get('code');
+      const type = hashParams.get('type') || searchParams.get('type');
+      const accessToken = hashParams.get('access_token') || searchParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token') || searchParams.get('refresh_token');
+
+      if (hashParams.get('error') || searchParams.get('error')) {
+        console.error('[ResetPassword] Recovery link returned error:', errorMessage);
+        markInvalid(errorMessage || 'Link de recuperação inválido ou expirado');
+        return;
+      }
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+        if (!error) {
+          markValid();
+          return;
+        }
+
+        console.error('[ResetPassword] Error exchanging recovery code:', error);
+      }
+
+      if (type === 'recovery' && accessToken && refreshToken) {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (!error) {
+          markValid();
+          return;
+        }
+
+        console.error('[ResetPassword] Error setting session:', error);
+      }
+
+      const session = await waitForSession();
+      if (session) {
+        markValid();
+        return;
+      }
+
+      markInvalid();
+    };
+
+    // Listen for PASSWORD_RECOVERY/SIGNED_IN because providers can finish URL recovery async
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && currentSession) {
+        markValid();
       }
     });
 
     checkSession();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleResetPassword = async () => {
@@ -186,13 +243,13 @@ export default function ResetPassword() {
               <p className="text-sm text-muted-foreground mb-2">Requisitos:</p>
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className={`w-4 h-4 ${newPassword.length >= 6 ? 'text-green-500' : 'text-muted-foreground'}`} />
+                  <CheckCircle2 className={`w-4 h-4 ${newPassword.length >= 6 ? 'text-primary' : 'text-muted-foreground'}`} />
                   <span className={newPassword.length >= 6 ? 'text-foreground' : 'text-muted-foreground'}>
                     Pelo menos 6 caracteres
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className={`w-4 h-4 ${newPassword && newPassword === confirmPassword ? 'text-green-500' : 'text-muted-foreground'}`} />
+                  <CheckCircle2 className={`w-4 h-4 ${newPassword && newPassword === confirmPassword ? 'text-primary' : 'text-muted-foreground'}`} />
                   <span className={newPassword && newPassword === confirmPassword ? 'text-foreground' : 'text-muted-foreground'}>
                     As senhas coincidem
                   </span>
