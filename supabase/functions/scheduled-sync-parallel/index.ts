@@ -268,6 +268,9 @@ Deno.serve(async (req) => {
 
     const { data: allProjects, error: projectsError } = await projectsQuery;
 
+    const { data: allProjects, error: projectsError } = await projectsQuery;
+    console.log(`[SYNC] Query returned ${allProjects?.length ?? 0} projects, error:`, projectsError?.message || 'none');
+
     const { eligible: projects, skippedScheduled, skippedExhausted, skippedNoAccount } =
       filterProjectsForSync(allProjects || []);
 
