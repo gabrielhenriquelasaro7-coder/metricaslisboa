@@ -250,7 +250,7 @@ Deno.serve(async (req) => {
     // Busca projetos com Meta e/ou Google configurado (incluindo token por projeto)
     let projectsQuery = supabase
       .from('projects')
-      .select('id, ad_account_id, name, google_customer_id, access_token, sync_progress, webhook_status')
+      .select('id, ad_account_id, name, google_customer_id, sync_progress, webhook_status')
       .eq('archived', false);
 
     if (project_ids && project_ids.length > 0) {
