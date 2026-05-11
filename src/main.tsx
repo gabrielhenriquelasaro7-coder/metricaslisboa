@@ -5,7 +5,7 @@ import "./index.css";
 import "./i18n"; // Initialize i18n before rendering
 
 // Force cache bust - increment this version to force all clients to clear cache
-const CACHE_VERSION = 'v2026-04-13-02';
+const CACHE_VERSION = 'v2026-05-11-hardreset-01';
 const CACHE_VERSION_KEY = 'app-cache-version';
 
 (async () => {
