@@ -64,8 +64,10 @@ interface SyncRequest {
 }
 
 const BASE_DELAY_MS = 200;
-const MAX_RETRIES = 3;
-const VALIDATION_RETRY_DELAYS = [5000, 10000, 20000];
+const MAX_RETRIES = 5;
+// Exponential backoff with jitter (ms) — used as fallback when Retry-After header is absent
+const VALIDATION_RETRY_DELAYS = [5000, 15000, 30000, 60000, 120000];
+const MAX_RETRY_AFTER_MS = 180000; // cap any Retry-After at 3 minutes to keep the function responsive
 
 const TRACKED_FIELDS_CAMPAIGN = ['status', 'objective'];
 const TRACKED_FIELDS_ADSET = ['status', 'targeting'];
@@ -104,13 +106,56 @@ function isTokenExpiredError(data: any): boolean {
   return code === 190 || code === '190' || subcode === 463 || subcode === 467 || (msg.includes('access token') && (msg.includes('expired') || msg.includes('invalid')));
 }
 
+function parseRetryAfter(headerValue: string | null): number | null {
+  if (!headerValue) return null;
+  const trimmed = headerValue.trim();
+  if (/^\d+$/.test(trimmed)) {
+    return Math.min(parseInt(trimmed, 10) * 1000, MAX_RETRY_AFTER_MS);
+  }
+  const date = Date.parse(trimmed);
+  if (!isNaN(date)) {
+    return Math.min(Math.max(0, date - Date.now()), MAX_RETRY_AFTER_MS);
+  }
+  return null;
+}
+
+function parseUsageHeader(headerValue: string | null): number | null {
+  if (!headerValue) return null;
+  try {
+    const parsed = JSON.parse(headerValue);
+    let maxEstimated = 0;
+    const visit = (node: any) => {
+      if (!node) return;
+      if (Array.isArray(node)) { node.forEach(visit); return; }
+      if (typeof node === 'object') {
+        if (typeof node.estimated_time_to_regain_access === 'number') {
+          maxEstimated = Math.max(maxEstimated, node.estimated_time_to_regain_access);
+        }
+        Object.values(node).forEach(visit);
+      }
+    };
+    visit(parsed);
+    if (maxEstimated > 0) return Math.min(maxEstimated * 60 * 1000, MAX_RETRY_AFTER_MS);
+  } catch {}
+  return null;
+}
+
 async function simpleFetch(url: string, options?: RequestInit, timeoutMs = 60000): Promise<any> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     const res = await fetch(url, { ...options, signal: controller.signal });
     clearTimeout(timeoutId);
-    return await res.json();
+    const retryAfterMs =
+      parseRetryAfter(res.headers.get('Retry-After')) ??
+      parseUsageHeader(res.headers.get('X-Business-Use-Case-Usage')) ??
+      parseUsageHeader(res.headers.get('X-App-Usage')) ??
+      parseUsageHeader(res.headers.get('X-Ad-Account-Usage'));
+    const json = await res.json().catch(() => ({}));
+    if (retryAfterMs != null || res.status === 429) {
+      json.__rateLimit = { status: res.status, retryAfterMs: retryAfterMs ?? 0 };
+    }
+    return json;
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : 'Fetch failed';
     console.log(`[FETCH] Error: ${errMsg}`);
@@ -120,33 +165,43 @@ async function simpleFetch(url: string, options?: RequestInit, timeoutMs = 60000
 
 async function fetchWithRetry(url: string, entityName: string, customTimeoutMs?: number): Promise<any> {
   const timeoutMs = customTimeoutMs || (entityName === 'INSIGHTS' ? 120000 : 60000);
-  
+
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const data = await simpleFetch(url, undefined, timeoutMs);
-    if (!data.error) {
+    const httpRateLimited = data?.__rateLimit && (data.__rateLimit.status === 429 || data.__rateLimit.retryAfterMs > 0);
+
+    if (!data.error && !httpRateLimited) {
+      delete data.__rateLimit;
       if ((!data.data || data.data.length === 0) && entityName !== 'ADIMAGES') {
         console.log(`[${entityName}] Empty response - no data returned`);
       }
       return data;
     }
-    
-    const errMsg = data.error?.message || '';
-    console.log(`[${entityName}] API Error (attempt ${attempt + 1}): ${JSON.stringify(data.error).substring(0, 300)}`);
-    
+
+    const errMsg = data.error?.message || (httpRateLimited ? `HTTP ${data.__rateLimit.status}` : '');
+    console.log(`[${entityName}] API Error (attempt ${attempt + 1}): ${JSON.stringify(data.error || data.__rateLimit).substring(0, 300)}`);
+
     if (errMsg.includes('aborted') || errMsg.includes('timeout')) {
       if (attempt < MAX_RETRIES) {
-        const waitTime = VALIDATION_RETRY_DELAYS[attempt] || 30000;
-        console.log(`[${entityName}] Timeout, retry ${attempt + 1}/${MAX_RETRIES} in ${waitTime / 1000}s...`);
-        await delay(waitTime);
+        const waitTime = VALIDATION_RETRY_DELAYS[attempt] || 60000;
+        const jitter = Math.floor(Math.random() * 2000);
+        console.log(`[${entityName}] Timeout, retry ${attempt + 1}/${MAX_RETRIES} in ${(waitTime + jitter) / 1000}s...`);
+        await delay(waitTime + jitter);
         continue;
       }
     }
-    
+
     if (isTokenExpiredError(data)) return data;
-    if (isRateLimitError(data) && attempt < MAX_RETRIES) {
-      const waitTime = VALIDATION_RETRY_DELAYS[attempt] || 30000;
-      console.log(`[${entityName}] Rate limit, retry ${attempt + 1}/${MAX_RETRIES} in ${waitTime / 1000}s...`);
-      await delay(waitTime);
+
+    const rateLimited = httpRateLimited || isRateLimitError(data);
+    if (rateLimited && attempt < MAX_RETRIES) {
+      const headerWait = data?.__rateLimit?.retryAfterMs || 0;
+      const fallbackWait = VALIDATION_RETRY_DELAYS[attempt] || 60000;
+      const waitTime = Math.min(Math.max(headerWait, fallbackWait), MAX_RETRY_AFTER_MS);
+      const jitter = Math.floor(Math.random() * 2000);
+      const source = headerWait > 0 ? 'Retry-After header' : 'exponential backoff';
+      console.log(`[${entityName}] Rate limit (${source}), retry ${attempt + 1}/${MAX_RETRIES} in ${(waitTime + jitter) / 1000}s...`);
+      await delay(waitTime + jitter);
       continue;
     }
     return data;
@@ -1987,17 +2042,27 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('[SYNC] Error:', error);
+    const errMsg = error instanceof Error ? error.message : 'Erro desconhecido';
     try {
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
       const body = await req.clone().json().catch(() => ({}));
       if (body.project_id) {
-        await supabase.from('projects').update({ 
-          sync_progress: { step: 'error', message: error instanceof Error ? error.message : 'Erro desconhecido' }
+        // Mark project as retry_pending so scheduled-sync re-processes it on the next run
+        const isRateLimit = /rate limit|user request limit|429|Retry-After/i.test(errMsg);
+        await supabase.from('projects').update({
+          webhook_status: 'retry_pending',
+          sync_progress: {
+            step: 'error',
+            message: errMsg,
+            will_retry: true,
+            rate_limited: isRateLimit,
+            failed_at: new Date().toISOString(),
+          },
         }).eq('id', body.project_id);
       }
     } catch {}
-    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: false, error: errMsg, retry: true }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
