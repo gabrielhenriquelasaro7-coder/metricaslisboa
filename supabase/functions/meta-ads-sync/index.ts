@@ -64,8 +64,10 @@ interface SyncRequest {
 }
 
 const BASE_DELAY_MS = 200;
-const MAX_RETRIES = 3;
-const VALIDATION_RETRY_DELAYS = [5000, 10000, 20000];
+const MAX_RETRIES = 5;
+// Exponential backoff with jitter (ms) — used as fallback when Retry-After header is absent
+const VALIDATION_RETRY_DELAYS = [5000, 15000, 30000, 60000, 120000];
+const MAX_RETRY_AFTER_MS = 180000; // cap any Retry-After at 3 minutes to keep the function responsive
 
 const TRACKED_FIELDS_CAMPAIGN = ['status', 'objective'];
 const TRACKED_FIELDS_ADSET = ['status', 'targeting'];
