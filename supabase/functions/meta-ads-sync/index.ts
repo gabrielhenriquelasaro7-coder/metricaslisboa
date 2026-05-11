@@ -111,39 +111,7 @@ function isTokenExpiredError(data: any): boolean {
   return code === 190 || code === '190' || subcode === 463 || subcode === 467 || (msg.includes('access token') && (msg.includes('expired') || msg.includes('invalid')));
 }
 
-function parseRetryAfter(headerValue: string | null): number | null {
-  if (!headerValue) return null;
-  const trimmed = headerValue.trim();
-  if (/^\d+$/.test(trimmed)) {
-    return Math.min(parseInt(trimmed, 10) * 1000, MAX_RETRY_AFTER_MS);
-  }
-  const date = Date.parse(trimmed);
-  if (!isNaN(date)) {
-    return Math.min(Math.max(0, date - Date.now()), MAX_RETRY_AFTER_MS);
-  }
-  return null;
-}
-
-function parseUsageHeader(headerValue: string | null): number | null {
-  if (!headerValue) return null;
-  try {
-    const parsed = JSON.parse(headerValue);
-    let maxEstimated = 0;
-    const visit = (node: any) => {
-      if (!node) return;
-      if (Array.isArray(node)) { node.forEach(visit); return; }
-      if (typeof node === 'object') {
-        if (typeof node.estimated_time_to_regain_access === 'number') {
-          maxEstimated = Math.max(maxEstimated, node.estimated_time_to_regain_access);
-        }
-        Object.values(node).forEach(visit);
-      }
-    };
-    visit(parsed);
-    if (maxEstimated > 0) return Math.min(maxEstimated * 60 * 1000, MAX_RETRY_AFTER_MS);
-  } catch {}
-  return null;
-}
+// parseRetryAfter / parseUsageHeader live in ./_retry_helpers.ts so they can be unit-tested.
 
 async function simpleFetch(url: string, options?: RequestInit, timeoutMs = 60000): Promise<any> {
   try {
