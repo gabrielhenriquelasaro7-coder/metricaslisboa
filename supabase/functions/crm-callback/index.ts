@@ -105,13 +105,25 @@ Deno.serve(async (req) => {
     const expiresIn = tokens.expires_in || 3600;
     const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
-    // Update connection with tokens
+    const [{ data: encryptedAccessToken, error: accessEncryptError }, { data: encryptedRefreshToken, error: refreshEncryptError }] = await Promise.all([
+      supabase.rpc('encrypt_crm_secret', { _plaintext: tokens.access_token }),
+      supabase.rpc('encrypt_crm_secret', { _plaintext: tokens.refresh_token }),
+    ]);
+
+    if (accessEncryptError || refreshEncryptError || !encryptedAccessToken) {
+      console.error('Failed to encrypt CRM OAuth tokens:', accessEncryptError || refreshEncryptError);
+      return createRedirect(supabaseUrl, 'error', 'Erro ao proteger credenciais');
+    }
+
+    // Update connection with encrypted tokens
     const { error: updateError } = await supabase
       .from('crm_connections')
       .update({
         status: 'connected',
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
+        access_token: null,
+        refresh_token: null,
+        access_token_enc: encryptedAccessToken,
+        refresh_token_enc: encryptedRefreshToken || null,
         token_expires_at: tokenExpiresAt,
         connected_at: new Date().toISOString(),
         last_error: null,

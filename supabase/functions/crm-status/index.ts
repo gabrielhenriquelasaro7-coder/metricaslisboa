@@ -103,17 +103,12 @@ Deno.serve(async (req) => {
 
     console.log('Period filter:', { startDate, endDate });
 
-    // Get connection for this project
-    const { data: connection, error: connError } = await supabase
-      .from('crm_connections')
-      .select('*')
-      .eq('project_id', projectId)
-      .eq('status', 'connected')
-      .order('connected_at', { ascending: false })
-      .limit(1)
-      .single();
+    // Get connection for this project with credentials decrypted only in backend runtime
+    const { data: connections, error: connError } = await supabase
+      .rpc('get_crm_connection_decrypted', { _connection_id: null, _project_id: projectId });
+    const connection = Array.isArray(connections) ? connections.find((c) => c.status === 'connected') : connections;
 
-    if (connError && connError.code !== 'PGRST116') {
+    if (connError) {
       throw connError;
     }
 

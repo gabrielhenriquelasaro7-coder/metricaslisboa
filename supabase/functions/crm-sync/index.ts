@@ -54,12 +54,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get connection details
-    const { data: connection, error: connError } = await supabase
-      .from('crm_connections')
-      .select('*')
-      .eq('id', connection_id)
-      .single();
+    // Get connection details with credentials decrypted only in backend runtime
+    const { data: connections, error: connError } = await supabase
+      .rpc('get_crm_connection_decrypted', { _connection_id: connection_id, _project_id: null });
+    const connection = Array.isArray(connections) ? connections[0] : connections;
 
     if (connError || !connection) {
       return new Response(
