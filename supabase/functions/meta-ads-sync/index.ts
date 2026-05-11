@@ -2042,17 +2042,27 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('[SYNC] Error:', error);
+    const errMsg = error instanceof Error ? error.message : 'Erro desconhecido';
     try {
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
       const body = await req.clone().json().catch(() => ({}));
       if (body.project_id) {
-        await supabase.from('projects').update({ 
-          sync_progress: { step: 'error', message: error instanceof Error ? error.message : 'Erro desconhecido' }
+        // Mark project as retry_pending so scheduled-sync re-processes it on the next run
+        const isRateLimit = /rate limit|user request limit|429|Retry-After/i.test(errMsg);
+        await supabase.from('projects').update({
+          webhook_status: 'retry_pending',
+          sync_progress: {
+            step: 'error',
+            message: errMsg,
+            will_retry: true,
+            rate_limited: isRateLimit,
+            failed_at: new Date().toISOString(),
+          },
         }).eq('id', body.project_id);
       }
     } catch {}
-    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: false, error: errMsg, retry: true }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
