@@ -561,6 +561,7 @@ export default function DiagnosticTOC() {
               {mode === 'results' && currentProject && (
                 <div className="animate-in fade-in zoom-in-95 duration-500">
                   <DiagnosticResults
+                    key={`${currentProject.id}-${currentProject.updatedAt}`}
                     project={currentProject}
                     onBack={() => setMode('list')}
                     onEdit={() => setMode('wizard')}
