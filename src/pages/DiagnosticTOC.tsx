@@ -95,6 +95,8 @@ export default function DiagnosticTOC() {
           id: r.id,
           dbId: r.id,
           projectId: r.project_id,
+          // Preserve link to the system project (used for live data lookups)
+          systemProjectId: reportData.systemProjectId || r.project_id,
           month: r.month,
           year: r.year,
           updatedAt: r.updated_at
@@ -124,37 +126,54 @@ export default function DiagnosticTOC() {
     fetchReports();
   }, [selectedMonth, selectedYear]);
 
-  const saveProject = async (p: DiagnosticProject) => {
-    // 1. Sempre salvar no LocalStorage primeiro como backup
+  const saveProject = async (p: DiagnosticProject): Promise<DiagnosticProject> => {
+    const systemProjectId = (p as any).systemProjectId || (p as any).projectId || p.id;
+    // Always persist systemProjectId inside the snapshot so future loads keep the link
+    const payload: any = { ...p, systemProjectId };
+
+    // 1. Backup local
     const localData = localStorage.getItem(PROJECTS_STORAGE_KEY);
     let localProjects: DiagnosticProject[] = localData ? JSON.parse(localData) : [];
-    const index = localProjects.findIndex(lp => lp.id === p.id);
+    const index = localProjects.findIndex(lp => lp.id === payload.id);
     if (index >= 0) {
-      localProjects[index] = p;
+      localProjects[index] = payload;
     } else {
-      localProjects.push(p);
+      localProjects.push(payload);
     }
     localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(localProjects));
 
-    // 2. Salvar no banco
+    // 2. Salvar no banco e devolver a row fresca
     try {
-      const systemProjectId = (p as any).systemProjectId || (p as any).projectId || p.id;
-
-      const { error } = await supabase
+      const { data: upserted, error } = await supabase
         .from('diagnostic_reports')
         .upsert({
           project_id: systemProjectId,
           month: selectedMonth,
           year: selectedYear,
-          data: p as any,
+          data: payload as any,
           updated_at: new Date().toISOString()
         } as any, {
           onConflict: 'project_id, month, year'
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
       toast.success('Diagnóstico salvo na nuvem!');
-      fetchReports();
+
+      const fresh: DiagnosticProject = {
+        ...((upserted as any)?.data ?? payload),
+        id: (upserted as any)?.id ?? payload.id,
+        dbId: (upserted as any)?.id ?? payload.id,
+        projectId: (upserted as any)?.project_id ?? systemProjectId,
+        systemProjectId,
+        month: (upserted as any)?.month ?? selectedMonth,
+        year: (upserted as any)?.year ?? selectedYear,
+        updatedAt: (upserted as any)?.updated_at ?? new Date().toISOString(),
+      } as DiagnosticProject;
+
+      await fetchReports();
+      return fresh;
     } catch (error: any) {
       console.error('Erro ao salvar:', error);
       if (error?.code === '42P01') {
@@ -162,7 +181,8 @@ export default function DiagnosticTOC() {
       } else {
         toast.error('Erro ao sincronizar com a nuvem, mas salvo localmente.');
       }
-      fetchReports();
+      await fetchReports();
+      return payload;
     }
   };
 
@@ -415,9 +435,9 @@ export default function DiagnosticTOC() {
                 <div className="animate-in fade-in zoom-in-95 duration-500">
                   <DiagnosticWizard
                     project={currentProject}
-                    onSave={(p) => {
-                      setCurrentProject(p);
-                      saveProject(p);
+                    onSave={async (p) => {
+                      const fresh = await saveProject(p);
+                      setCurrentProject(fresh);
                       setMode('results');
                     }}
                     onCancel={() => setMode('list')}
@@ -431,9 +451,9 @@ export default function DiagnosticTOC() {
                     project={currentProject}
                     onBack={() => setMode('list')}
                     onEdit={() => setMode('wizard')}
-                    onSave={(p) => {
-                      setCurrentProject(p);
-                      saveProject(p);
+                    onSave={async (p) => {
+                      const fresh = await saveProject(p);
+                      setCurrentProject(fresh);
                     }}
                   />
                 </div>

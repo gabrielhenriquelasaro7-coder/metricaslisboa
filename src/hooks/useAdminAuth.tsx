@@ -143,23 +143,35 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
   const verifyPassword = async (password: string): Promise<boolean> => {
     try {
-      // Use rpc or raw query since system_settings might not be in types yet
       const { data, error } = await supabase
         .from('system_settings' as any)
         .select('value')
         .eq('key', 'admin_password')
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[AdminAuth] Error querying admin_password:', error);
+        return false;
+      }
 
-      if (data && (data as any).value === password) {
+      if (!data) {
+        console.warn('[AdminAuth] admin_password not found in system_settings');
+        return false;
+      }
+
+      const stored = String((data as any).value ?? '').trim();
+      const provided = String(password ?? '').trim();
+
+      if (stored && stored === provided) {
         setIsAdminAuthenticated(true);
         localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify({ timestamp: Date.now() }));
         return true;
       }
+
+      console.warn('[AdminAuth] Password mismatch');
       return false;
     } catch (error) {
-      console.error('Error verifying admin password:', error);
+      console.error('[AdminAuth] Unexpected error verifying admin password:', error);
       return false;
     }
   };
