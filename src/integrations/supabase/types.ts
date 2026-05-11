@@ -645,6 +645,27 @@ export type Database = {
           },
         ]
       }
+      app_secrets: {
+        Row: {
+          created_at: string
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       campaign_goals: {
         Row: {
           campaign_id: string
@@ -3704,6 +3725,40 @@ export type Database = {
       can_view_project: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
+      }
+      encrypt_crm_secret: { Args: { _plaintext: string }; Returns: string }
+      get_crm_connection_decrypted: {
+        Args: { _connection_id?: string; _project_id?: string }
+        Returns: {
+          access_token: string | null
+          access_token_enc: string | null
+          api_key: string | null
+          api_key_enc: string | null
+          api_url: string | null
+          config: Json | null
+          connected_at: string | null
+          created_at: string | null
+          display_name: string | null
+          funnel_cards_config: Json | null
+          id: string
+          last_error: string | null
+          mql_stage_ids: string[] | null
+          project_id: string
+          provider: Database["public"]["Enums"]["crm_provider"]
+          refresh_token: string | null
+          refresh_token_enc: string | null
+          sql_stage_ids: string[] | null
+          status: Database["public"]["Enums"]["crm_connection_status"] | null
+          token_expires_at: string | null
+          updated_at: string | null
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "crm_connections"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_user_cargo: {
         Args: { _user_id: string }
