@@ -126,6 +126,13 @@ Deno.serve(async (req) => {
         );
       }
 
+      const { data: encryptedApiKey, error: encryptError } = await supabase
+        .rpc('encrypt_crm_secret', { _plaintext: api_key });
+
+      if (encryptError || !encryptedApiKey) {
+        throw encryptError || new Error('Falha ao proteger credenciais do CRM');
+      }
+
       // Create or update connection
       const connectionData = {
         project_id,
@@ -133,7 +140,8 @@ Deno.serve(async (req) => {
         provider,
         status: 'connected' as const,
         display_name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} - ${project.name}`,
-        api_key,
+        api_key: null,
+        api_key_enc: encryptedApiKey,
         api_url: api_url || isValid.api_url,
         config: config || {},
         connected_at: new Date().toISOString(),
