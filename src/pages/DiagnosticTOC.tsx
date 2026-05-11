@@ -70,7 +70,10 @@ const pct = (part: number, total: number) => total > 0 ? Number(((part / total) 
 
 async function refreshDiagnosticProjectWithLiveData(project: DiagnosticProject): Promise<DiagnosticProject> {
   const systemProjectId = (project as any).systemProjectId || (project as any).projectId;
-  if (!systemProjectId) return project;
+  if (!systemProjectId) {
+    console.warn('[DiagnosticTOC] Projeto sem systemProjectId — não é possível recalcular com dados atuais.');
+    return project;
+  }
 
   const untilDate = new Date();
   const sinceDate = new Date();
@@ -124,6 +127,11 @@ async function refreshDiagnosticProjectWithLiveData(project: DiagnosticProject):
   const mediaEvidence = latestAdsSync ? `Mídia atualizada em ${new Date(latestAdsSync).toLocaleString('pt-BR')}` : 'Mídia recalculada dos últimos 30 dias';
   const crmEvidence = latestCrmSync ? `CRM ${crmConnected ? 'conectado' : 'não conectado'} · atualizado em ${new Date(latestCrmSync).toLocaleString('pt-BR')}` : 'CRM recalculado dos últimos 30 dias';
 
+  // REGRA: Nunca reutilizar snapshot antigo. Sempre recalcular com dados atuais.
+  // Quando não há dados, value = 0 e reliability = 'baixa'.
+  const hasMedia = ads.length > 0 && impressions > 0;
+  const noDataEvidence = 'Sem dados nos últimos 30 dias — recalculado agora';
+
   return {
     ...project,
     id: project.id,
@@ -134,17 +142,17 @@ async function refreshDiagnosticProjectWithLiveData(project: DiagnosticProject):
       ...project.tracking,
       crm_com_origem: crmConnected,
       funil_padronizado_crm: crmConnected,
-      conf_crm: crmConnected ? 'alta' : project.tracking?.conf_crm || 'baixa',
+      conf_crm: crmConnected ? 'alta' : 'baixa',
     },
     bowtie: {
       ...project.bowtie,
-      exposicao: { ...project.bowtie.exposicao, value: impressions > 0 ? Number(((spend / impressions) * 1000).toFixed(2)) : project.bowtie.exposicao.value, reliability: ads.length ? 'alta' : project.bowtie.exposicao.reliability, evidence: mediaEvidence },
-      atencao: { ...project.bowtie.atencao, value: impressions > 0 ? pct(clicks, impressions) : project.bowtie.atencao.value, reliability: ads.length ? 'alta' : project.bowtie.atencao.reliability, evidence: mediaEvidence },
-      interesse: { ...project.bowtie.interesse, value: adsLeads > 0 ? pct(deals.length, adsLeads) : project.bowtie.interesse.value, reliability: crmConnected && ads.length ? 'alta' : project.bowtie.interesse.reliability, evidence: `${crmEvidence} · ${deals.length} negócios / ${adsLeads} leads` },
-      qualificacao: { ...project.bowtie.qualificacao, value: deals.length > 0 ? pct(proposals, deals.length) : project.bowtie.qualificacao.value, reliability: crmConnected ? 'alta' : project.bowtie.qualificacao.reliability, evidence: `${crmEvidence} · ${proposals} propostas / ${deals.length} negócios` },
-      compromisso: { ...project.bowtie.compromisso, value: proposals > 0 ? pct(sales, proposals) : project.bowtie.compromisso.value, reliability: crmConnected ? 'alta' : project.bowtie.compromisso.reliability, evidence: `${crmEvidence} · ${sales} vendas / ${proposals} propostas` },
-      decisao: { ...project.bowtie.decisao, value: deals.length > 0 ? pct(sales, deals.length) : project.bowtie.decisao.value, reliability: crmConnected ? 'alta' : project.bowtie.decisao.reliability, evidence: `${crmEvidence} · ${sales} vendas / ${deals.length} negócios` },
-      cegueira: { ...project.bowtie.cegueira, value: crmConnected && ads.length ? 10 : project.bowtie.cegueira.value, reliability: crmConnected && ads.length ? 'alta' : project.bowtie.cegueira.reliability, evidence: crmConnected ? crmEvidence : project.bowtie.cegueira.evidence },
+      exposicao:    { ...project.bowtie.exposicao,    value: hasMedia ? Number(((spend / impressions) * 1000).toFixed(2)) : 0, reliability: hasMedia ? 'alta' : 'baixa', evidence: hasMedia ? mediaEvidence : noDataEvidence },
+      atencao:      { ...project.bowtie.atencao,      value: hasMedia ? pct(clicks, impressions) : 0, reliability: hasMedia ? 'alta' : 'baixa', evidence: hasMedia ? mediaEvidence : noDataEvidence },
+      interesse:    { ...project.bowtie.interesse,    value: adsLeads > 0 ? pct(deals.length, adsLeads) : 0, reliability: crmConnected && hasMedia ? 'alta' : 'baixa', evidence: `${crmEvidence} · ${deals.length} negócios / ${adsLeads} leads` },
+      qualificacao: { ...project.bowtie.qualificacao, value: deals.length > 0 ? pct(proposals, deals.length) : 0, reliability: crmConnected ? 'alta' : 'baixa', evidence: `${crmEvidence} · ${proposals} propostas / ${deals.length} negócios` },
+      compromisso:  { ...project.bowtie.compromisso,  value: proposals > 0 ? pct(sales, proposals) : 0, reliability: crmConnected ? 'alta' : 'baixa', evidence: `${crmEvidence} · ${sales} vendas / ${proposals} propostas` },
+      decisao:      { ...project.bowtie.decisao,      value: deals.length > 0 ? pct(sales, deals.length) : 0, reliability: crmConnected ? 'alta' : 'baixa', evidence: `${crmEvidence} · ${sales} vendas / ${deals.length} negócios` },
+      cegueira:     { ...project.bowtie.cegueira,     value: crmConnected && hasMedia ? 10 : 0, reliability: crmConnected && hasMedia ? 'alta' : 'baixa', evidence: crmConnected ? crmEvidence : noDataEvidence },
     }
   } as DiagnosticProject;
 }
