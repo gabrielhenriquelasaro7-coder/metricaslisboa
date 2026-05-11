@@ -69,6 +69,7 @@ export function SyncStatusCard({
   const formatDate = (date?: Date) => {
     if (!date) return '--';
     return new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',

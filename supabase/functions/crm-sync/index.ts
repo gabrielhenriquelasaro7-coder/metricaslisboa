@@ -758,6 +758,46 @@ async function fetchHelpSysDeals(
   const deals: CRMDeal[] = [];
   const headers: Record<string, string> = { 'X-API-KEY': apiKey };
 
+  const formatSaoPauloDate = (date: Date) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+
+  const addMonths = (date: Date, months: number) => {
+    const next = new Date(date);
+    next.setUTCMonth(next.getUTCMonth() + months);
+    return next;
+  };
+
+  const buildDateWindows = () => {
+    const today = new Date();
+    const endDate = formatSaoPauloDate(today);
+
+    if (syncType === 'incremental') {
+      const recentStart = new Date(today);
+      recentStart.setUTCDate(recentStart.getUTCDate() - 45);
+      return [{ start: formatSaoPauloDate(recentStart), end: endDate }];
+    }
+
+    const windows: Array<{ start: string; end: string }> = [];
+    let cursor = new Date('2025-01-01T03:00:00Z');
+    const end = new Date(`${endDate}T03:00:00Z`);
+
+    while (cursor <= end) {
+      const monthStart = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), 1, 3));
+      const monthEnd = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 0, 3));
+      windows.push({
+        start: formatSaoPauloDate(monthStart),
+        end: formatSaoPauloDate(monthEnd > end ? end : monthEnd),
+      });
+      cursor = addMonths(monthStart, 1);
+    }
+
+    return windows;
+  };
+
   // Fetch pipelines to get stage info and identify won/lost stages
   const stageNames: Record<number, string> = {};
   const wonStageNames = new Set<string>();
@@ -828,18 +868,17 @@ async function fetchHelpSysDeals(
   const pipelinesToQuery = allPipelineIds.length > 0 ? allPipelineIds : [null as number | null];
 
   const seenIds = new Set<string>();
+  const dateWindows = buildDateWindows();
 
   for (const pipelineId of pipelinesToQuery) {
     try {
-      while (true) {
+      for (const dateWindow of dateWindows) {
         const url = new URL(`${apiUrl}/leads.php`);
         if (pipelineId !== null) {
           url.searchParams.set('pipeline', String(pipelineId));
         }
-
-        // Since pagination isn't officially documented for GET /leads.php, 
-        // but the user reports 690k (partial), we'll try to fetch without limit first.
-        // If the API returns a 'total' field, we can use it to determine if we got everything.
+        url.searchParams.set('data_criacao_inicio', dateWindow.start);
+        url.searchParams.set('data_criacao_fim', dateWindow.end);
 
         console.log(`[CRM Sync] Fetching HelpSys leads from: ${url.toString()}`);
         const response = await fetch(url.toString(), { method: 'GET', headers });
@@ -853,7 +892,7 @@ async function fetchHelpSysDeals(
         const data = await response.json();
         const leads = Array.isArray(data) ? data : (data.dados || data.data || []);
 
-        if (leads.length === 0) break;
+        if (leads.length === 0) continue;
 
         // Log API response structure if it has metadata
         if (data.total !== undefined) {
@@ -972,9 +1011,6 @@ async function fetchHelpSysDeals(
           } as CRMDeal & { _pipeline_uuid?: string });
         }
 
-        // If we don't have pagination params, we assume we got all data or the API doesn't support it.
-        // We break the loop to avoid infinite calls if page++ is ignored.
-        break;
       }
 
       const stageStats = deals.reduce((acc: Record<string, number>, d) => {
