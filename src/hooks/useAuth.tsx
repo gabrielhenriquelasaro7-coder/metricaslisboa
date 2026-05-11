@@ -118,6 +118,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
     });
+
+    if (!error) {
+      // Hard refresh pós-login: limpar caches e service workers
+      // para garantir que o usuário sempre veja os dados mais recentes
+      try {
+        sessionStorage.setItem('post-login-refresh', '1');
+
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(
+            regs.map(async (reg) => {
+              try {
+                await reg.update();
+              } catch {
+                /* noop */
+              }
+            })
+          );
+        }
+      } catch (e) {
+        console.warn('[auth] cache cleanup failed', e);
+      }
+
+      // Reload duro para reidratar todo o estado da app com dados frescos
+      const url = new URL(window.location.href);
+      url.searchParams.set('_r', Date.now().toString());
+      window.location.replace(url.toString());
+    }
+
     return { error: error as Error | null };
   };
 
