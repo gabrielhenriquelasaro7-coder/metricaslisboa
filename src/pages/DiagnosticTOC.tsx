@@ -70,7 +70,10 @@ const pct = (part: number, total: number) => total > 0 ? Number(((part / total) 
 
 async function refreshDiagnosticProjectWithLiveData(project: DiagnosticProject): Promise<DiagnosticProject> {
   const systemProjectId = (project as any).systemProjectId || (project as any).projectId;
-  if (!systemProjectId) return project;
+  if (!systemProjectId) {
+    console.warn('[DiagnosticTOC] Projeto sem systemProjectId — não é possível recalcular com dados atuais.');
+    return project;
+  }
 
   const untilDate = new Date();
   const sinceDate = new Date();
