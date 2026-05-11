@@ -107,81 +107,30 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       workbox: {
-        // Cache strategies
+        // Only cache static shell assets — NEVER cache API responses
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-        
-        // Increase limit for large bundles (4 MB)
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        
-        // Runtime caching for API calls
+
+        // HTML navigations always go to network first so deploys roll out instantly
+        navigateFallback: null,
         runtimeCaching: [
           {
-            // Cache Supabase API responses (except auth)
-            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 5 // 5 minutes
-              },
-              networkTimeoutSeconds: 10,
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
+            // NEVER cache Supabase API — always fresh from network
+            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            handler: 'NetworkOnly',
           },
           {
-            // Cache images from Supabase storage
-            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/.*/i,
+            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'supabase-storage-cache',
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-          {
-            // Cache Google Fonts
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-          {
-            // Cache font files
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'gstatic-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
+              cacheName: 'fonts-cache',
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] }
             }
           }
         ],
-        
-        // Clean old caches
+
         cleanupOutdatedCaches: true,
-        
-        // Skip waiting for new service worker
         skipWaiting: true,
         clientsClaim: true
       },
