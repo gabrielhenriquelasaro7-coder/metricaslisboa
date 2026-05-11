@@ -243,13 +243,13 @@ export default function ResetPassword() {
               <p className="text-sm text-muted-foreground mb-2">Requisitos:</p>
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className={`w-4 h-4 ${newPassword.length >= 6 ? 'text-green-500' : 'text-muted-foreground'}`} />
+                  <CheckCircle2 className={`w-4 h-4 ${newPassword.length >= 6 ? 'text-primary' : 'text-muted-foreground'}`} />
                   <span className={newPassword.length >= 6 ? 'text-foreground' : 'text-muted-foreground'}>
                     Pelo menos 6 caracteres
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className={`w-4 h-4 ${newPassword && newPassword === confirmPassword ? 'text-green-500' : 'text-muted-foreground'}`} />
+                  <CheckCircle2 className={`w-4 h-4 ${newPassword && newPassword === confirmPassword ? 'text-primary' : 'text-muted-foreground'}`} />
                   <span className={newPassword && newPassword === confirmPassword ? 'text-foreground' : 'text-muted-foreground'}>
                     As senhas coincidem
                   </span>
